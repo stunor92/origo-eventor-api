@@ -19,7 +19,7 @@ import org.springframework.web.servlet.HandlerInterceptor
 class OptionalJwtInterceptor : HandlerInterceptor {
     private val log = LoggerFactory.getLogger(this.javaClass)
 
-    @Value("\${config.jwt.secret}")
+    @Value($$"${config.jwt.secret}")
     private lateinit var jwtSecret: String
 
     override fun preHandle(request: HttpServletRequest, response: HttpServletResponse, handler: Any): Boolean {

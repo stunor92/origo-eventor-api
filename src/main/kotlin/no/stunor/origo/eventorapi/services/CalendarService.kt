@@ -140,7 +140,7 @@ class CalendarService(
             result.addAll(getEventList(eventor = eventor, from = from, to = to, organisations = null, classifications = classifications, persons = persons))
 
         }
-        return result
+        return filterRacesByDateRange(result, from, to)
     }
 
     fun getEventList(eventorId: String, from: LocalDate, to: LocalDate, organisations: List<String>?, classifications: List<EventClassificationEnum>?, userId: UUID?): List<CalendarRace> {
@@ -151,7 +151,8 @@ class CalendarService(
         } else {
             emptyList()
         }
-        return getEventList(eventor = eventor, from = from, to = to, organisations = organisations, classifications = classifications, persons = persons )
+        val races = getEventList(eventor = eventor, from = from, to = to, organisations = organisations, classifications = classifications, persons = persons)
+        return filterRacesByDateRange(races, from, to)
     }
 
     private fun getEventList(eventor: Eventor, from: LocalDate, to: LocalDate, organisations: List<String>?, classifications: List<EventClassificationEnum>?, persons: List<Person>): List<CalendarRace> {
@@ -186,6 +187,13 @@ class CalendarService(
         result = calendarConverter.convertStartListList(eventor, startListList, person, result)
         result = calendarConverter.convertResultList(eventor, resultListList, person, result)
         return result.values.stream().toList()
+    }
+
+    private fun filterRacesByDateRange(races: List<CalendarRace>, from: LocalDate, to: LocalDate): List<CalendarRace> {
+        return races.filter { race ->
+            val raceLocalDate = race.raceDate.toLocalDateTime().toLocalDate()
+            !raceLocalDate.isBefore(from) && !raceLocalDate.isAfter(to)
+        }
     }
 }
 
