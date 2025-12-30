@@ -1,5 +1,21 @@
 # Changelog
 
+## [11.0.0](https://github.com/stunor92/origo-eventor-api/compare/v10.0.5...v11.0.0) (2025-12-30)
+
+
+### ⚠ BREAKING CHANGES
+
+* migrate to jdk 25 ([#258](https://github.com/stunor92/origo-eventor-api/issues/258))
+
+### Bug Fixes
+
+* filter races outside requested date-range in calendar-list service ([#261](https://github.com/stunor92/origo-eventor-api/issues/261)) ([0f6e41c](https://github.com/stunor92/origo-eventor-api/commit/0f6e41ce13760733b3bfda088c657080bd0f8f66))
+
+
+### Miscellaneous Chores
+
+* migrate to jdk 25 ([#258](https://github.com/stunor92/origo-eventor-api/issues/258)) ([f34ec15](https://github.com/stunor92/origo-eventor-api/commit/f34ec15198dd07fbf54358388ea7d4f2b753bdbb))
+
 ## [10.0.5](https://github.com/stunor92/OriGo-EventorApi/compare/v10.0.4...v10.0.5) (2025-12-11)
 
 
