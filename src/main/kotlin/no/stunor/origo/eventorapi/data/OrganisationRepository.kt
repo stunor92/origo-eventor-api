@@ -4,6 +4,7 @@ import no.stunor.origo.eventorapi.model.organisation.Organisation
 import no.stunor.origo.eventorapi.model.organisation.OrganisationType
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.jdbc.core.RowMapper
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate
 import org.springframework.stereotype.Repository
 import java.sql.ResultSet
 import java.util.*
@@ -11,6 +12,7 @@ import java.util.*
 @Repository
 open class OrganisationRepository(
     private val jdbcTemplate: JdbcTemplate,
+    private val namedParameterJdbcTemplate: NamedParameterJdbcTemplate,
     private val regionRepository: RegionRepository
 ) {
     
@@ -51,6 +53,23 @@ open class OrganisationRepository(
         } catch (_: Exception) {
             null
         }
+    }
+    
+    /**
+     * Batch load organisations by their IDs.
+     * 
+     * @param ids List of organisation IDs to load
+     * @return Map of organisation ID to Organisation object
+     */
+    open fun findByIds(ids: List<UUID>): Map<UUID, Organisation> {
+        if (ids.isEmpty()) return emptyMap()
+        
+        val params = mapOf("ids" to ids)
+        val sql = "SELECT * FROM organisation WHERE id IN (:ids)"
+        
+        return namedParameterJdbcTemplate.query(sql, params, rowMapper)
+            .filterNotNull()
+            .associateBy { it.id!! }
     }
     
     open fun save(organisation: Organisation): Organisation {

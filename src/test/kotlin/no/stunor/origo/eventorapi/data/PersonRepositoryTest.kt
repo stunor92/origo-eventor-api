@@ -140,8 +140,10 @@ class PersonRepositoryTest {
         }
         
         // Mock the organisation loading
-        every { membershipRepository.getOrganisationById(orgId1) } returns org1
-        every { membershipRepository.getOrganisationById(orgId2) } returns org2
+        every { membershipRepository.getOrganisationsByIds(listOf(orgId1, orgId2)) } returns mapOf(
+            orgId1 to org1,
+            orgId2 to org2
+        )
         
         // When
         val method = PersonRepository::class.java.getDeclaredMethod(
@@ -162,9 +164,8 @@ class PersonRepositoryTest {
         assertEquals(org2.name, person2.memberships[0].organisation?.name)
         assertEquals(MembershipType.Admin, person2.memberships[0].type)
         
-        // Verify organisations were loaded
-        verify(exactly = 1) { membershipRepository.getOrganisationById(orgId1) }
-        verify(exactly = 1) { membershipRepository.getOrganisationById(orgId2) }
+        // Verify organisations were loaded in batch
+        verify(exactly = 1) { membershipRepository.getOrganisationsByIds(listOf(orgId1, orgId2)) }
     }
 
     @Test

@@ -24,6 +24,10 @@ open class PersonRepository(
     private val userPersonRepository: UserPersonRepository
 ) {
     
+    companion object {
+        private const val BATCH_SIZE = 1000
+    }
+    
     // Simple row mapper without nested queries (for batch loading)
     private val simpleRowMapper = RowMapper { rs: ResultSet, _: Int ->
         Person(
@@ -79,14 +83,12 @@ open class PersonRepository(
         val personIds = persons.mapNotNull { it.id }
         if (personIds.isEmpty()) return
 
-        // Batch size to avoid overly large IN clauses / parameter lists
-        val batchSize = 1000
         val sql = "SELECT * FROM membership WHERE person_id IN (:personIds)"
 
         // Accumulate memberships across all batches
         val allMemberships = mutableListOf<Membership>()
 
-        personIds.chunked(batchSize).forEach { batch ->
+        personIds.chunked(BATCH_SIZE).forEach { batch ->
             val params = mapOf("personIds" to batch)
 
             val batchMemberships = namedParameterJdbcTemplate.query(sql, params) { rs: ResultSet, _: Int ->
@@ -110,11 +112,10 @@ open class PersonRepository(
             if (organisationIds.isEmpty()) {
                 emptyMap()
             } else {
-                organisationIds.chunked(batchSize).flatMap { batch ->
-                    batch.mapNotNull { organisationId ->
-                        membershipRepository.getOrganisationById(organisationId)?.let { organisationId to it }
-                    }
-                }.toMap()
+                // Batch the organisation loading to respect BATCH_SIZE limit
+                organisationIds.chunked(BATCH_SIZE).flatMap { batch ->
+                    membershipRepository.getOrganisationsByIds(batch).entries
+                }.associate { it.key to it.value }
             }
 
         val membershipsWithOrganisations = allMemberships.map { membership ->
@@ -143,12 +144,10 @@ open class PersonRepository(
         val personIds = persons.mapNotNull { it.id }
         if (personIds.isEmpty()) return
 
-        // Batch the IN-clause to avoid too many parameters in a single query
-        val batchSize = 1000
         val sql = "SELECT * FROM user_person WHERE person_id IN (:personIds)"
         val allUserPersons = mutableListOf<UserPerson>()
 
-        for (chunk in personIds.chunked(batchSize)) {
+        for (chunk in personIds.chunked(BATCH_SIZE)) {
             val params = mapOf("personIds" to chunk)
             val batchResult = namedParameterJdbcTemplate.query(sql, params) { rs: ResultSet, _: Int ->
                 UserPerson(

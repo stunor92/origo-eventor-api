@@ -38,6 +38,8 @@ open class MembershipRepository(
     }
     
     open fun getOrganisationById(organisationId: UUID) = organisationRepository.findById(organisationId)
+    
+    open fun getOrganisationsByIds(organisationIds: List<UUID>) = organisationRepository.findByIds(organisationIds)
 
     open fun save(membership: Membership): Membership {
         jdbcTemplate.update(
