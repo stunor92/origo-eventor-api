@@ -1,6 +1,13 @@
 package no.stunor.origo.eventorapi.data
 
-import no.stunor.origo.eventorapi.model.person.*
+import no.stunor.origo.eventorapi.model.person.Gender
+import no.stunor.origo.eventorapi.model.person.Membership
+import no.stunor.origo.eventorapi.model.person.MembershipKey
+import no.stunor.origo.eventorapi.model.person.MembershipType
+import no.stunor.origo.eventorapi.model.person.Person
+import no.stunor.origo.eventorapi.model.person.PersonName
+import no.stunor.origo.eventorapi.model.person.UserPerson
+import no.stunor.origo.eventorapi.model.person.UserPersonKey
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.jdbc.core.RowMapper
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate
@@ -61,7 +68,10 @@ open class PersonRepository(
     }
     
     /**
-     * Helper method to batch load memberships for multiple persons
+     * Helper method to batch load memberships for multiple persons.
+     * This method modifies the persons parameter in-place by populating the memberships field.
+     *
+     * @param persons List of persons to load memberships for. The memberships field will be populated for each person.
      */
     private fun loadMembershipsForPersons(persons: List<Person>) {
         if (persons.isEmpty()) return
@@ -69,24 +79,51 @@ open class PersonRepository(
         val personIds = persons.mapNotNull { it.id }
         if (personIds.isEmpty()) return
 
-        val params = mapOf("personIds" to personIds)
+        // Batch size to avoid overly large IN clauses / parameter lists
+        val batchSize = 1000
         val sql = "SELECT * FROM membership WHERE person_id IN (:personIds)"
 
-        val allMemberships = namedParameterJdbcTemplate.query(sql, params) { rs: ResultSet, _: Int ->
-            val personId = rs.getObject("person_id", UUID::class.java)
-            val organisationId = rs.getObject("organisation_id", UUID::class.java)
-            val organisation = organisationId?.let { membershipRepository.getOrganisationById(it) }
+        // Accumulate memberships across all batches
+        val allMemberships = mutableListOf<Membership>()
 
-            Membership(
-                id = MembershipKey(personId = personId, organisationId = organisationId),
-                person = null,
-                organisation = organisation,
-                type = MembershipType.valueOf(rs.getString("type"))
-            )
-        }.toList()
+        personIds.chunked(batchSize).forEach { batch ->
+            val params = mapOf("personIds" to batch)
+
+            val batchMemberships = namedParameterJdbcTemplate.query(sql, params) { rs: ResultSet, _: Int ->
+                val personId = rs.getObject("person_id", UUID::class.java)
+                val organisationId = rs.getObject("organisation_id", UUID::class.java)
+
+                Membership(
+                    id = MembershipKey(personId = personId, organisationId = organisationId),
+                    person = null,
+                    organisation = null, // Organisations loaded in batch below
+                    type = MembershipType.valueOf(rs.getString("type"))
+                )
+            }
+
+            allMemberships.addAll(batchMemberships)
+        }
+
+        // Batch-load organisations for all memberships to avoid N+1 queries
+        val organisationIds = allMemberships.mapNotNull { it.id.organisationId }.distinct()
+        val organisationsById =
+            if (organisationIds.isEmpty()) {
+                emptyMap()
+            } else {
+                organisationIds.chunked(batchSize).flatMap { batch ->
+                    batch.mapNotNull { organisationId ->
+                        membershipRepository.getOrganisationById(organisationId)?.let { organisationId to it }
+                    }
+                }.toMap()
+            }
+
+        val membershipsWithOrganisations = allMemberships.map { membership ->
+            val organisation = membership.id.organisationId?.let { organisationsById[it] }
+            membership.copy(organisation = organisation)
+        }
 
         // Group memberships by person_id
-        val membershipsByPersonId = allMemberships.groupBy { it.id.personId }
+        val membershipsByPersonId = membershipsWithOrganisations.groupBy { it.id.personId }
 
         // Assign memberships to persons
         persons.forEach { person ->
@@ -95,7 +132,10 @@ open class PersonRepository(
     }
 
     /**
-     * Helper method to batch load user associations for multiple persons
+     * Helper method to batch load user associations for multiple persons.
+     * This method modifies the persons parameter in-place by populating the users field.
+     *
+     * @param persons List of persons to load user associations for. The users field will be populated for each person.
      */
     private fun loadUsersForPersons(persons: List<Person>) {
         if (persons.isEmpty()) return
@@ -103,18 +143,24 @@ open class PersonRepository(
         val personIds = persons.mapNotNull { it.id }
         if (personIds.isEmpty()) return
 
-        val params = mapOf("personIds" to personIds)
+        // Batch the IN-clause to avoid too many parameters in a single query
+        val batchSize = 1000
         val sql = "SELECT * FROM user_person WHERE person_id IN (:personIds)"
+        val allUserPersons = mutableListOf<UserPerson>()
 
-        val allUserPersons = namedParameterJdbcTemplate.query(sql, params) { rs: ResultSet, _: Int ->
-            UserPerson(
-                id = UserPersonKey(
-                    userId = rs.getObject("user_id", UUID::class.java),
-                    personId = rs.getObject("person_id", UUID::class.java)
-                ),
-                person = null
-            )
-        }.toList()
+        for (chunk in personIds.chunked(batchSize)) {
+            val params = mapOf("personIds" to chunk)
+            val batchResult = namedParameterJdbcTemplate.query(sql, params) { rs: ResultSet, _: Int ->
+                UserPerson(
+                    id = UserPersonKey(
+                        userId = rs.getObject("user_id", UUID::class.java),
+                        personId = rs.getObject("person_id", UUID::class.java)
+                    ),
+                    person = null
+                )
+            }
+            allUserPersons.addAll(batchResult)
+        }
 
         // Group user associations by person_id
         val usersByPersonId = allUserPersons.groupBy { it.id.personId }
