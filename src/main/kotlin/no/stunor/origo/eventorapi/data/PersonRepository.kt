@@ -147,7 +147,7 @@ open class PersonRepository(
         val sql = "SELECT * FROM user_person WHERE person_id IN (:personIds)"
         val allUserPersons = mutableListOf<UserPerson>()
 
-        for (chunk in personIds.chunked(BATCH_SIZE)) {
+        personIds.chunked(BATCH_SIZE).forEach { chunk ->
             val params = mapOf("personIds" to chunk)
             val batchResult = namedParameterJdbcTemplate.query(sql, params) { rs: ResultSet, _: Int ->
                 UserPerson(

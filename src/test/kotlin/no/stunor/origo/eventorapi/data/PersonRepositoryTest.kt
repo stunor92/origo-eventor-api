@@ -5,7 +5,14 @@ import io.mockk.mockk
 import io.mockk.verify
 import no.stunor.origo.eventorapi.model.organisation.Organisation
 import no.stunor.origo.eventorapi.model.organisation.OrganisationType
-import no.stunor.origo.eventorapi.model.person.*
+import no.stunor.origo.eventorapi.model.person.Gender
+import no.stunor.origo.eventorapi.model.person.Membership
+import no.stunor.origo.eventorapi.model.person.MembershipKey
+import no.stunor.origo.eventorapi.model.person.MembershipType
+import no.stunor.origo.eventorapi.model.person.Person
+import no.stunor.origo.eventorapi.model.person.PersonName
+import no.stunor.origo.eventorapi.model.person.UserPerson
+import no.stunor.origo.eventorapi.model.person.UserPersonKey
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
