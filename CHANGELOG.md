@@ -1,5 +1,12 @@
 # Changelog
 
+## [11.0.1](https://github.com/stunor92/origo-eventor-api/compare/v11.0.0...v11.0.1) (2026-01-06)
+
+
+### Bug Fixes
+
+* batch load memberships in sql query ([#265](https://github.com/stunor92/origo-eventor-api/issues/265)) ([8bb8844](https://github.com/stunor92/origo-eventor-api/commit/8bb8844a56d6ed3f82655f94c25d15745630732f))
+
 ## [11.0.0](https://github.com/stunor92/origo-eventor-api/compare/v10.0.5...v11.0.0) (2025-12-30)
 
 
