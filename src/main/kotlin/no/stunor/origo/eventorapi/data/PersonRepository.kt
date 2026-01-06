@@ -113,9 +113,10 @@ open class PersonRepository(
                 emptyMap()
             } else {
                 // Batch the organisation loading to respect BATCH_SIZE limit
-                organisationIds.chunked(BATCH_SIZE).flatMap { batch ->
-                    membershipRepository.getOrganisationsByIds(batch).entries
-                }.associate { it.key to it.value }
+                organisationIds.chunked(BATCH_SIZE)
+                    .fold(mutableMapOf<UUID, Organisation>()) { acc, batch ->
+                        acc.apply { putAll(membershipRepository.getOrganisationsByIds(batch)) }
+                    }
             }
 
         // Assign organisations to memberships
