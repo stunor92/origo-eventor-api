@@ -118,13 +118,13 @@ open class PersonRepository(
                 }.associate { it.key to it.value }
             }
 
-        val membershipsWithOrganisations = allMemberships.map { membership ->
-            val organisation = membership.id.organisationId?.let { organisationsById[it] }
-            membership.copy(organisation = organisation)
+        // Assign organisations to memberships
+        allMemberships.forEach { membership ->
+            membership.organisation = membership.id.organisationId?.let { organisationsById[it] }
         }
 
         // Group memberships by person_id
-        val membershipsByPersonId = membershipsWithOrganisations.groupBy { it.id.personId }
+        val membershipsByPersonId = allMemberships.groupBy { it.id.personId }
 
         // Assign memberships to persons
         persons.forEach { person ->
