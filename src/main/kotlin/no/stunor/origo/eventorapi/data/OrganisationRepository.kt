@@ -68,8 +68,8 @@ open class OrganisationRepository(
         val sql = "SELECT * FROM organisation WHERE id IN (:ids)"
         
         return namedParameterJdbcTemplate.query(sql, params, rowMapper)
-            .filterNotNull()
-            .associateBy { it.id!! }
+            .mapNotNull { org -> org.id?.let { id -> id to org } }
+            .toMap()
     }
     
     open fun save(organisation: Organisation): Organisation {

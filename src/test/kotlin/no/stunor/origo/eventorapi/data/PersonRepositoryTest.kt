@@ -45,18 +45,41 @@ class PersonRepositoryTest {
         )
     }
 
-    @Test
-    fun `loadMembershipsForPersons should handle empty person list`() {
-        // Given
-        val persons = emptyList<Person>()
-        
-        // When
+    /**
+     * Helper to invoke private loadMembershipsForPersons method via reflection.
+     * The method is intentionally private as it's an internal implementation detail,
+     * but we test it directly to ensure the batch loading logic works correctly.
+     */
+    private fun invokeMembershipsLoader(persons: List<Person>) {
         val method = PersonRepository::class.java.getDeclaredMethod(
             "loadMembershipsForPersons",
             List::class.java
         )
         method.isAccessible = true
         method.invoke(personRepository, persons)
+    }
+
+    /**
+     * Helper to invoke private loadUsersForPersons method via reflection.
+     * The method is intentionally private as it's an internal implementation detail,
+     * but we test it directly to ensure the batch loading logic works correctly.
+     */
+    private fun invokeUsersLoader(persons: List<Person>) {
+        val method = PersonRepository::class.java.getDeclaredMethod(
+            "loadUsersForPersons",
+            List::class.java
+        )
+        method.isAccessible = true
+        method.invoke(personRepository, persons)
+    }
+
+    @Test
+    fun `loadMembershipsForPersons should handle empty person list`() {
+        // Given
+        val persons = emptyList<Person>()
+        
+        // When
+        invokeMembershipsLoader(persons)
         
         // Then - no exception should be thrown and no database queries should be made
         verify(exactly = 0) { namedParameterJdbcTemplate.query(any<String>(), any<Map<String, Any>>(), any<RowMapper<Membership>>()) }
@@ -70,12 +93,7 @@ class PersonRepositoryTest {
         )
         
         // When
-        val method = PersonRepository::class.java.getDeclaredMethod(
-            "loadMembershipsForPersons",
-            List::class.java
-        )
-        method.isAccessible = true
-        method.invoke(personRepository, persons)
+        invokeMembershipsLoader(persons)
         
         // Then - no database queries should be made
         verify(exactly = 0) { namedParameterJdbcTemplate.query(any<String>(), any<Map<String, Any>>(), any<RowMapper<Membership>>()) }
@@ -153,12 +171,7 @@ class PersonRepositoryTest {
         )
         
         // When
-        val method = PersonRepository::class.java.getDeclaredMethod(
-            "loadMembershipsForPersons",
-            List::class.java
-        )
-        method.isAccessible = true
-        method.invoke(personRepository, persons)
+        invokeMembershipsLoader(persons)
         
         // Then
         assertEquals(1, person1.memberships.size)
@@ -197,12 +210,7 @@ class PersonRepositoryTest {
         } returns emptyList()
         
         // When
-        val method = PersonRepository::class.java.getDeclaredMethod(
-            "loadMembershipsForPersons",
-            List::class.java
-        )
-        method.isAccessible = true
-        method.invoke(personRepository, persons)
+        invokeMembershipsLoader(persons)
         
         // Then - should have made 2 queries (1000 + 500 persons)
         verify(exactly = 2) {
@@ -220,12 +228,7 @@ class PersonRepositoryTest {
         val persons = emptyList<Person>()
         
         // When
-        val method = PersonRepository::class.java.getDeclaredMethod(
-            "loadUsersForPersons",
-            List::class.java
-        )
-        method.isAccessible = true
-        method.invoke(personRepository, persons)
+        invokeUsersLoader(persons)
         
         // Then - no exception should be thrown and no database queries should be made
         verify(exactly = 0) { namedParameterJdbcTemplate.query(any<String>(), any<Map<String, Any>>(), any<RowMapper<UserPerson>>()) }
@@ -239,12 +242,7 @@ class PersonRepositoryTest {
         )
         
         // When
-        val method = PersonRepository::class.java.getDeclaredMethod(
-            "loadUsersForPersons",
-            List::class.java
-        )
-        method.isAccessible = true
-        method.invoke(personRepository, persons)
+        invokeUsersLoader(persons)
         
         // Then - no database queries should be made
         verify(exactly = 0) { namedParameterJdbcTemplate.query(any<String>(), any<Map<String, Any>>(), any<RowMapper<UserPerson>>()) }
@@ -297,12 +295,7 @@ class PersonRepositoryTest {
         }
         
         // When
-        val method = PersonRepository::class.java.getDeclaredMethod(
-            "loadUsersForPersons",
-            List::class.java
-        )
-        method.isAccessible = true
-        method.invoke(personRepository, persons)
+        invokeUsersLoader(persons)
         
         // Then
         assertEquals(1, person1.users.size)
@@ -336,12 +329,7 @@ class PersonRepositoryTest {
         } returns emptyList()
         
         // When
-        val method = PersonRepository::class.java.getDeclaredMethod(
-            "loadUsersForPersons",
-            List::class.java
-        )
-        method.isAccessible = true
-        method.invoke(personRepository, persons)
+        invokeUsersLoader(persons)
         
         // Then - should have made 2 queries (1000 + 500 persons)
         verify(exactly = 2) {
