@@ -7,7 +7,7 @@ import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.jdbc.core.RowMapper
 import org.springframework.stereotype.Repository
 import java.sql.ResultSet
-import java.util.UUID
+import java.util.*
 
 @Repository
 open class MembershipRepository(
@@ -37,6 +37,8 @@ open class MembershipRepository(
         )
     }
     
+    open fun getOrganisationById(organisationId: UUID) = organisationRepository.findById(organisationId)
+
     open fun save(membership: Membership): Membership {
         jdbcTemplate.update(
             """
