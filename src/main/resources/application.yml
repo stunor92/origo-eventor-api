@@ -37,13 +37,13 @@ management:
       access: read_only
 config:
   personalEntries:
-    start: 1
+    start: 0
     end: 7
   personalStarts:
-    start: 1
+    start: 0
     end: 5
   personalResults:
     start: 5
-    end: 1
+    end: 0
   jwt:
     secret: ${JWT_SECRET:your-local-jwt-secret-min-32-chars}

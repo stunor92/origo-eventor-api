@@ -5,7 +5,6 @@ import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.jdbc.core.RowMapper
 import org.springframework.stereotype.Repository
 import java.sql.ResultSet
-import java.util.UUID
 
 @Repository
 open class UserRepository(private val jdbcTemplate: JdbcTemplate) {
@@ -32,9 +31,5 @@ open class UserRepository(private val jdbcTemplate: JdbcTemplate) {
             user.id
         )
         return user
-    }
-    
-    open fun deleteById(id: UUID) {
-        jdbcTemplate.update("DELETE FROM auth.users WHERE id = ?", id)
     }
 }
