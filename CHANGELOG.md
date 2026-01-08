@@ -1,5 +1,16 @@
 # Changelog
 
+## [12.0.0](https://github.com/stunor92/origo-eventor-api/compare/v11.0.1...v12.0.0) (2026-01-08)
+
+
+### ⚠ BREAKING CHANGES
+
+* delete delete endpoint that should be handled in supabase. ([#269](https://github.com/stunor92/origo-eventor-api/issues/269))
+
+### Bug Fixes
+
+* delete delete endpoint that should be handled in supabase. ([#269](https://github.com/stunor92/origo-eventor-api/issues/269)) ([dc2c785](https://github.com/stunor92/origo-eventor-api/commit/dc2c785a7b4fecbfaf4689fad1d61d42aa9fdf98))
+
 ## [11.0.1](https://github.com/stunor92/origo-eventor-api/compare/v11.0.0...v11.0.1) (2026-01-06)
 
 
