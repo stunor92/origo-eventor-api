@@ -11,18 +11,18 @@ import no.stunor.origo.eventorapi.data.UserPersonRepository
 import no.stunor.origo.eventorapi.exception.EventorAuthException
 import no.stunor.origo.eventorapi.exception.EventorConnectionException
 import no.stunor.origo.eventorapi.exception.EventorNotFoundException
-import no.stunor.origo.eventorapi.model.person.Person
 import no.stunor.origo.eventorapi.services.converter.PersonConverter
 import no.stunor.origo.eventorapi.testdata.EventorFactory
 import no.stunor.origo.eventorapi.testdata.PersonFactory
-import org.iof.eventor.Person as EventorPerson
-import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import org.springframework.web.client.HttpClientErrorException
 import org.springframework.http.HttpStatus
+import org.springframework.web.client.HttpClientErrorException
 import java.util.*
+import org.iof.eventor.Person as EventorPerson
 
 class PersonServiceTest {
     private lateinit var eventorRepository: EventorRepository
@@ -201,37 +201,4 @@ class PersonServiceTest {
         }
     }
 
-    @Test
-    fun `delete should remove user-person association when person exists`() {
-        // Given
-        val eventorId = "NOR"
-        val personId = "123"
-        val userId = UUID.randomUUID()
-        val person = PersonFactory.createTestPerson()
-        
-        every { personRepository.findByEventorIdAndEventorRef(eventorId, personId) } returns person
-        every { userPersonRepository.deleteByUserIdAndPersonId(userId, person.id) } returns Unit
-
-        // When
-        personService.delete(eventorId, personId, userId)
-
-        // Then
-        verify { userPersonRepository.deleteByUserIdAndPersonId(userId, person.id) }
-    }
-
-    @Test
-    fun `delete should do nothing when person does not exist`() {
-        // Given
-        val eventorId = "NOR"
-        val personId = "123"
-        val userId = UUID.randomUUID()
-        
-        every { personRepository.findByEventorIdAndEventorRef(eventorId, personId) } returns null
-
-        // When
-        personService.delete(eventorId, personId, userId)
-
-        // Then
-        verify(exactly = 0) { userPersonRepository.deleteByUserIdAndPersonId(any(), any()) }
-    }
 }

@@ -36,11 +36,5 @@ open class UserPersonRepository(private val jdbcTemplate: JdbcTemplate) {
         )
         return userPerson
     }
-    
-    open fun deleteByUserIdAndPersonId(userId: UUID, personId: UUID?) {
-        jdbcTemplate.update(
-            "DELETE FROM user_person WHERE user_id = ? AND person_id = ?",
-            userId, personId
-        )
-    }
+
 }

@@ -4,7 +4,6 @@ import jakarta.servlet.http.HttpServletRequest
 import no.stunor.origo.eventorapi.model.person.Person
 import no.stunor.origo.eventorapi.services.PersonService
 import no.stunor.origo.eventorapi.validation.InputValidator
-import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -14,7 +13,6 @@ import java.util.*
 @RestController
 @RequestMapping("person")
 internal class PersonController {
-    private val log = LoggerFactory.getLogger(this.javaClass)
 
     @Autowired
     private lateinit var personService: PersonService
@@ -41,25 +39,6 @@ internal class PersonController {
                 password = password,
                 userId = uid
             ), HttpStatus.OK
-        )
-    }
-
-    @DeleteMapping("/{eventorId}/{personId}")
-    fun HttpServletRequest.delete(
-        @PathVariable eventorId: String,
-        @PathVariable personId: String
-    ) {
-        val uid = UUID.fromString(getAttribute("uid") as String)
-        log.info("Start deleting person.")
-
-        // Validate inputs to prevent SSRF attacks
-        val validatedEventorId = inputValidator.validateEventorId(eventorId)
-        val validatedPersonId = inputValidator.validatePersonId(personId)
-
-        personService.delete(
-            eventorId = validatedEventorId,
-            personId = validatedPersonId,
-            userId = uid
         )
     }
 }

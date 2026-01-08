@@ -17,6 +17,9 @@ class InputValidator {
 
         // Alphanumeric person IDs with optional hyphens
         private val PERSON_ID_PATTERN = Regex("^[0-9-]{1,20}$")
+
+        // Organisation IDs (numeric)
+        private val ORGANISATION_ID_PATTERN = Regex("^[0-9]{1,20}$")
     }
 
     /**
@@ -42,14 +45,22 @@ class InputValidator {
     }
 
     /**
-     * Validates person ID to prevent SSRF attacks
+     * Validates organisation ID to prevent SSRF attacks
      * @throws IllegalArgumentException if invalid
      */
-    fun validatePersonId(personId: String): String {
-        require(PERSON_ID_PATTERN.matches(personId)) {
-            "Invalid event ID format. Must be numeric."
+    fun validateOrganisationId(organisationId: String): String {
+        require(ORGANISATION_ID_PATTERN.matches(organisationId)) {
+            "Invalid organisation ID format. Must be numeric."
         }
-        return personId
+        return organisationId
+    }
+
+    /**
+     * Validates a list of organisation IDs to prevent SSRF attacks
+     * @throws IllegalArgumentException if any ID is invalid
+     */
+    fun validateOrganisationIds(organisationIds: List<String>?): List<String>? {
+        return organisationIds?.map { validateOrganisationId(it) }
     }
 
     /**

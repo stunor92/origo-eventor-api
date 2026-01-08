@@ -50,13 +50,13 @@ internal class EventListController {
 
         // Validate input to prevent SSRF attacks
         val validatedEventorId = inputValidator.validateEventorId(eventorId)
-
+        val validatedOrganisations = inputValidator.validateOrganisationIds(organisations)
         return ResponseEntity(
                 calendarService.getEventList(
                         eventorId = validatedEventorId,
                         from = from,
                         to = to,
-                        organisations = organisations,
+                        organisations = validatedOrganisations,
                         classifications = classifications,
                         userId = uid
                 ),

@@ -62,10 +62,4 @@ class PersonService {
             throw EventorConnectionException()
         }
     }
-
-    fun delete(eventorId: String, personId: String, userId: UUID) {
-        val person = personRepository.findByEventorIdAndEventorRef(eventorId, personId) ?: return
-        userPersonRepository.deleteByUserIdAndPersonId(userId = userId, personId =  person.id)
-    }
-
 }

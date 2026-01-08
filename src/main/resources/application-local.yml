@@ -1,0 +1,10 @@
+config:
+  personalEntries:
+    start: 150
+    end: 7
+  personalStarts:
+    start: 150
+    end: 5
+  personalResults:
+    start: 150
+    end: 0
