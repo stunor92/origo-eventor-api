@@ -121,7 +121,7 @@ The application uses Spring profiles for configuration:
 
 1. Copy the example configuration file:
    ```bash
-   cp src/main/resources/application-local.yml src/main/resources/application-local.yml
+   cp src/main/resources/application-staging.yml src/main/resources/application-staging.yml
    ```
 
 2. Update `application-local.yml` with your local values:
