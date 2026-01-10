@@ -6,6 +6,13 @@ server:
   servlet:
     context-path: /rest
 spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # Constructed from SUPABASE_PROJECT_REF environment variable
+          jwk-set-uri: https://${SUPABASE_PROJECT_REF:}.supabase.co/rest/v1/jwks
+          issuer-uri: https://${SUPABASE_PROJECT_REF:}.supabase.co/auth/v1
   datasource:
     url: ${POSTGRES_DB:jdbc:postgresql://127.0.0.1:54322/postgres}
     username: ${POSTGRES_USER:postgres}
@@ -51,5 +58,5 @@ config:
   personalResults:
     start: 5
     end: 0
-  jwt:
-    secret: ${JWT_SECRET:your-local-jwt-secret-min-32-chars}
+
+

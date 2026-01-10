@@ -1,7 +1,7 @@
 package no.stunor.origo.eventorapi.controller
 
-import jakarta.servlet.http.HttpServletRequest
 import no.stunor.origo.eventorapi.model.person.Person
+import no.stunor.origo.eventorapi.security.SecurityUtils
 import no.stunor.origo.eventorapi.services.PersonService
 import no.stunor.origo.eventorapi.validation.InputValidator
 import org.springframework.beans.factory.annotation.Autowired
@@ -21,12 +21,13 @@ internal class PersonController {
     private lateinit var inputValidator: InputValidator
 
     @PostMapping("/{eventorId}")
-    fun HttpServletRequest.authenticate(
+    fun authenticate(
         @PathVariable eventorId: String,
         @RequestHeader(value = "username") username: String,
         @RequestHeader(value = "password") password: String
     ): ResponseEntity<Person> {
-        val uid = UUID.fromString(getAttribute("uid") as String)
+        val uid = UUID.fromString(SecurityUtils.getCurrentUserId()
+            ?: throw IllegalStateException("Authentication required"))
 
         // Validate inputs to prevent SSRF attacks
         val validatedEventorId = inputValidator.validateEventorId(eventorId)
