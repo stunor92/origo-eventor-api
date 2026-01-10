@@ -13,6 +13,8 @@ spring:
           # Constructed from SUPABASE_PROJECT_REF environment variable
           jwk-set-uri: https://${SUPABASE_PROJECT_REF:}.supabase.co/rest/v1/jwks
           issuer-uri: https://${SUPABASE_PROJECT_REF:}.supabase.co/auth/v1
+          # Supabase uses ECDSA (ES256) - must be explicitly specified
+          jws-algorithms: ES256
   datasource:
     url: ${POSTGRES_DB:jdbc:postgresql://127.0.0.1:54322/postgres}
     username: ${POSTGRES_USER:postgres}
