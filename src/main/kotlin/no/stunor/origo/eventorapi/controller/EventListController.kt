@@ -1,8 +1,8 @@
 package no.stunor.origo.eventorapi.controller
 
-import jakarta.servlet.http.HttpServletRequest
 import no.stunor.origo.eventorapi.model.calendar.CalendarRace
 import no.stunor.origo.eventorapi.model.event.EventClassificationEnum
+import no.stunor.origo.eventorapi.security.SecurityUtils
 import no.stunor.origo.eventorapi.services.CalendarService
 import no.stunor.origo.eventorapi.validation.InputValidator
 import org.slf4j.LoggerFactory
@@ -30,7 +30,7 @@ internal class EventListController {
 
 
     @GetMapping("/{eventorId}")
-    fun HttpServletRequest.getEventList(
+    fun getEventList(
         @PathVariable eventorId: String,
         @RequestParam("from") from: LocalDate,
         @RequestParam("to") to: LocalDate,
@@ -45,8 +45,7 @@ internal class EventListController {
         ) classifications: List<EventClassificationEnum>?
     ): ResponseEntity<List<CalendarRace>> {
         log.info("Start to get event-list from eventor-{}.", eventorId)
-        val uidString = getAttribute("uid") as String?
-        val uid = uidString?.let { UUID.fromString(it) }
+        val uid = SecurityUtils.getCurrentUserId()?.let { UUID.fromString(it) }
 
         // Validate input to prevent SSRF attacks
         val validatedEventorId = inputValidator.validateEventorId(eventorId)
@@ -65,7 +64,7 @@ internal class EventListController {
     }
 
     @GetMapping
-    fun HttpServletRequest.getEventList(
+    fun getEventList(
         @RequestParam("from") from: LocalDate,
         @RequestParam("to") to: LocalDate,
         @RequestParam(
@@ -75,8 +74,7 @@ internal class EventListController {
         ) classifications: List<EventClassificationEnum>?
     ): ResponseEntity<List<CalendarRace>> {
         log.info("Start to get event-list from all eventors.")
-        val uidString = getAttribute("uid") as String?
-        val uid = uidString?.let { UUID.fromString(it) }
+        val uid = SecurityUtils.getCurrentUserId()?.let { UUID.fromString(it) }
         return ResponseEntity(
             calendarService.getEventList(
                 from = from,
@@ -89,14 +87,16 @@ internal class EventListController {
     }
 
     @GetMapping("/me")
-    fun HttpServletRequest.getUserEntries(): ResponseEntity<List<CalendarRace>> {
-        val uid = UUID.fromString(getAttribute("uid") as String?)
+    fun getUserEntries(): ResponseEntity<List<CalendarRace>> {
+        val uidString = SecurityUtils.getCurrentUserId()
 
-        // /me endpoint requires authentication
-        if (uid == null) {
+        // /me endpoint requires authentication (enforced by Spring Security)
+        if (uidString == null) {
             log.warn("Attempted to access /me endpoint without authentication")
             return ResponseEntity(HttpStatus.UNAUTHORIZED)
         }
+
+        val uid = UUID.fromString(uidString)
 
         return ResponseEntity(
             calendarService.getEventList(
