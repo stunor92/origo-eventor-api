@@ -15,9 +15,6 @@ class PersonControllerIntegrationTest {
 
     @MockkBean
     private lateinit var personService: PersonService
-    
-    @MockkBean(relaxed = true)
-    private lateinit var jwtInterceptor: no.stunor.origo.eventorapi.interceptor.JwtInterceptor
 
     @Test
     fun `authenticate should call service authenticate method and return OK`() {
