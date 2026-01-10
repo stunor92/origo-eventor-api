@@ -1,5 +1,15 @@
 # Changelog
 
+## [12.0.1](https://github.com/stunor92/origo-eventor-api/compare/v12.0.0...v12.0.1) (2026-01-10)
+
+
+### Bug Fixes
+
+* app handles invalid tokens with fallback to no auth ([#277](https://github.com/stunor92/origo-eventor-api/issues/277)) ([bbc387c](https://github.com/stunor92/origo-eventor-api/commit/bbc387cc9ec845fd77c7d75bcd174794545d12e1))
+* migrate to modern and rotating jwt tokens with spring-boot-security ([#272](https://github.com/stunor92/origo-eventor-api/issues/272)) ([fe9abff](https://github.com/stunor92/origo-eventor-api/commit/fe9abffc7e9b1bd60567b62481c193a0084d4fc6))
+* remove legacy interceptor in test ([#275](https://github.com/stunor92/origo-eventor-api/issues/275)) ([b1da818](https://github.com/stunor92/origo-eventor-api/commit/b1da81893d81569f373613ce4e257087b755dfd9))
+* spexify jws-algorithms to ES256 ([#276](https://github.com/stunor92/origo-eventor-api/issues/276)) ([8bb7dba](https://github.com/stunor92/origo-eventor-api/commit/8bb7dba40031581b38eb6d73b6a9904f1d9a8d6b))
+
 ## [12.0.0](https://github.com/stunor92/origo-eventor-api/compare/v11.0.1...v12.0.0) (2026-01-08)
 
 
