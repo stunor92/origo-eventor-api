@@ -1,6 +1,6 @@
 {
   "release-type": "maven",
-  "include-v-in-tag": true,
+  "include-v-in-tag": false,
 
   "packages": {
     ".": {
