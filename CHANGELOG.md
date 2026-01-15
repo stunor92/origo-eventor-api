@@ -1,5 +1,12 @@
 # Changelog
 
+## [12.0.3](https://github.com/stunor92/origo-eventor-api/compare/v12.0.2...v12.0.3) (2026-01-15)
+
+
+### Bug Fixes
+
+* test production deploy trigger ([#282](https://github.com/stunor92/origo-eventor-api/issues/282)) ([9181c34](https://github.com/stunor92/origo-eventor-api/commit/9181c34dee2c6d7823faef479314e871b2d34f06))
+
 ## [12.0.2](https://github.com/stunor92/origo-eventor-api/compare/v12.0.1...v12.0.2) (2026-01-15)
 
 
