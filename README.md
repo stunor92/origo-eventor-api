@@ -1,4 +1,4 @@
-# Eventor API Converter
+# Eventor API
 
 This Spring Boot web application converts Eventor IOF-XML files to JSON format, which is used in OriGo apps.
 The application provides REST API endpoints to fetch and convert event data from various Eventor federations.
