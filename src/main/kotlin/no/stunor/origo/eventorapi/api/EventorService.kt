@@ -21,6 +21,7 @@ import org.springframework.http.converter.HttpMessageConverter
 import org.springframework.http.converter.xml.Jaxb2RootElementHttpMessageConverter
 import org.springframework.stereotype.Service
 import org.springframework.web.client.RestTemplate
+import org.springframework.web.client.exchange
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -49,11 +50,10 @@ class EventorService {
         headers["Password"] = password
 
         val request = HttpEntity<String>(headers)
-        val response = restTemplate.exchange(
+        val response = restTemplate.exchange<org.iof.eventor.Person>(
             eventor.baseUrl + "api/authenticatePerson",
             HttpMethod.GET,
             request,
-            org.iof.eventor.Person::class.java,
             1
         )
         return response.body
@@ -111,13 +111,12 @@ class EventorService {
         headers["ApiKey"] = eventor.eventorApiKey
 
         val request = HttpEntity<String>(headers)
-        val response = restTemplate.exchange(
+        val response = restTemplate.exchange<CompetitorCountList>(
             eventor.baseUrl + "api/competitorcount?eventIds=" + java.lang.String.join(",", events) +
                     ",&organisationIds=" + java.lang.String.join(",", organisations) +
                     "&personIds=" + java.lang.String.join(",", persons),
             HttpMethod.GET,
             request,
-            CompetitorCountList::class.java,
             1
         )
         return response.body ?: CompetitorCountList()
@@ -134,7 +133,7 @@ class EventorService {
         headers["ApiKey"] = eventor.eventorApiKey
 
         val request = HttpEntity<String>(headers)
-        val response = restTemplate.exchange(
+        val response = restTemplate.exchange<StartListList>(
             eventor.baseUrl
                     + "api/starts/person?personId=" + personId
                     + "&fromDate=" + (if (fromDate == null) "" else dateFormat.format(fromDate))
@@ -142,7 +141,6 @@ class EventorService {
                     + "&eventIds=" + (eventId ?: ""),
             HttpMethod.GET,
             request,
-            StartListList::class.java,
             1
         )
         return response.body
@@ -159,7 +157,7 @@ class EventorService {
         headers["ApiKey"] = eventor.eventorApiKey
 
         val request = HttpEntity<String>(headers)
-        val response = restTemplate.exchange(
+        val response = restTemplate.exchange<ResultListList>(
             eventor.baseUrl
                     + "api/results/person?personId=" + personId
                     + "&fromDate=" + (if (fromDate == null) "" else dateFormat.format(fromDate))
@@ -167,7 +165,6 @@ class EventorService {
                     + "&eventIds=" + (eventId ?: ""),
             HttpMethod.GET,
             request,
-            ResultListList::class.java,
             1
         )
         return response.body
@@ -184,7 +181,7 @@ class EventorService {
         headers["ApiKey"] = eventor.eventorApiKey
 
         val request = HttpEntity<String>(headers)
-        val response = restTemplate.exchange(
+        val response = restTemplate.exchange<EntryList>(
             eventor.baseUrl
                     + "api/entries?organisationIds=" + java.lang.String.join(",", organisations)
                     + "&fromEventDate=" + (if (fromDate == null) "" else dateFormat.format(fromDate))
@@ -192,7 +189,6 @@ class EventorService {
                     + "&includeEventElement=true&eventIds=" + (eventId ?: ""),
             HttpMethod.GET,
             request,
-            EntryList::class.java,
             1
         )
         return response.body ?: EntryList()
@@ -203,11 +199,10 @@ class EventorService {
         headers["ApiKey"] = apiKey
 
         val request = HttpEntity<String>(headers)
-        val response = restTemplate.exchange(
+        val response = restTemplate.exchange<Event>(
             baseUrl + "api/event/" + eventId,
             HttpMethod.GET,
             request,
-            Event::class.java,
             1
         )
         return response.body
@@ -218,11 +213,10 @@ class EventorService {
         headers["ApiKey"] = eventor.eventorApiKey
 
         val request = HttpEntity<String>(headers)
-        val response = restTemplate.exchange(
+        val response = restTemplate.exchange<EventClassList>(
             eventor.baseUrl + "api/eventclasses?includeEntryFees=true&eventId=" + eventId,
             HttpMethod.GET,
             request,
-            EventClassList::class.java,
             1
         )
         return response.body
@@ -233,11 +227,10 @@ class EventorService {
         headers["ApiKey"] = apiKey
 
         val request = HttpEntity<String>(headers)
-        val response = restTemplate.exchange(
+        val response = restTemplate.exchange<DocumentList>(
             baseUrl + "api/events/documents?eventIds=" + eventId,
             HttpMethod.GET,
             request,
-            DocumentList::class.java,
             1
         )
         return response.body
@@ -248,11 +241,10 @@ class EventorService {
         headers["ApiKey"] = apiKey
 
         val request = HttpEntity<String>(headers)
-        val response = restTemplate.exchange(
+        val response = restTemplate.exchange<EntryList>(
             baseUrl + "api/entries?includePersonElement=true&includeEntryFees=true&eventIds=" + eventId,
             HttpMethod.GET,
             request,
-            EntryList::class.java,
             1
         )
         return response.body
@@ -263,11 +255,10 @@ class EventorService {
         headers["ApiKey"] = apiKey
 
         val request = HttpEntity<String>(headers)
-        val response = restTemplate.exchange(
+        val response = restTemplate.exchange<StartList>(
             baseUrl + "api/starts/event?eventId=" + eventId,
             HttpMethod.GET,
             request,
-            StartList::class.java,
             1
         )
         return response.body
@@ -278,11 +269,10 @@ class EventorService {
         headers["ApiKey"] = apiKey
 
         val request = HttpEntity<String>(headers)
-        val response = restTemplate.exchange(
+        val response = restTemplate.exchange<ResultList>(
             baseUrl + "api/results/event?eventId=" + eventId + "&includeSplitTimes=true",
             HttpMethod.GET,
             request,
-            ResultList::class.java,
             1
         )
         return response.body
@@ -293,11 +283,10 @@ class EventorService {
         headers["ApiKey"] = eventor.eventorApiKey
 
         val request = HttpEntity<String>(headers)
-        val response = restTemplate.exchange(
+        val response = restTemplate.exchange<EntryFeeList>(
             eventor.baseUrl + "api/entryfees/events/" + eventId,
             HttpMethod.GET,
             request,
-            EntryFeeList::class.java,
             1
         )
         return response.body
