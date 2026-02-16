@@ -20,7 +20,7 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
 @Service
-open class EventService {
+class EventService {
 
     @Autowired
     private lateinit var eventorRepository: EventorRepository
@@ -45,7 +45,7 @@ open class EventService {
 
 
     @Transactional
-    open fun getEvent(eventorId: String, eventorRef: String): Event {
+    fun getEvent(eventorId: String, eventorRef: String): Event {
         val eventor = eventorRepository.findById(eventorId) ?: throw EventorNotFoundException()
         val eventorEvent = eventorService.getEvent(eventor.baseUrl, eventor.eventorApiKey, eventorRef) ?: throw EventNotFoundException()
         val eventClassList = eventorService.getEventClasses(eventor, eventorRef)
@@ -75,7 +75,7 @@ open class EventService {
 
         // Merge fees
         val entryFees = eventorService.getEventEntryFees(eventor, eventorRef)
-        val convertedFees = FeeConverter.convertEntryFees(entryFees, event, eventClassList?.eventClass ?: listOf())
+        val convertedFees: List<Fee> = FeeConverter.convertEntryFees(entryFees, event, eventClassList?.eventClass ?: listOf())
 
         // Update fee.classes to reference the actual saved classes with correct IDs from database
         convertedFees.forEach { fee ->
@@ -85,7 +85,7 @@ open class EventService {
         }
 
         val existingFees = feeRepository.findAllByEventId(event.id)
-        val existingByRef = existingFees.associateBy { it.eventorRef }.toMutableMap()
+        val existingByRef = existingFees.associateBy { it.eventorRef }
         val mergedFees = mutableListOf<Fee>()
         for (fee in convertedFees) {
             val match = existingByRef[fee.eventorRef]
@@ -490,7 +490,7 @@ open class EventService {
      * Performance note: While this makes 3 API calls, it ensures data accuracy
      * by identifying participants who registered but didn't participate.
      */
-    open fun getEntryList(eventorId: String, eventId: String): List<Entry> {
+    fun getEntryList(eventorId: String, eventId: String): List<Entry> {
         val eventor = eventorRepository.findById(eventorId)
             ?: throw EventorNotFoundException()
 
