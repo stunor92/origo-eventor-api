@@ -7,8 +7,8 @@ import java.sql.Timestamp
 
 data class TeamMember(
         val leg: Int = 1,
-        var personId: String? = null,
-        var competitorId: String? = null,
+        var personEventorRef: String? = null,
+        var competitorEventorRef: String? = null,
         var name: PersonName? = PersonName(),
         var birthYear: Int? = null,
         var nationality: String? = null,

@@ -146,7 +146,7 @@ class EventService {
      * Returns null for entries without sufficient identification.
      */
     private fun generatePrimaryEntryKey(entry: Entry): String? = when (entry) {
-        is PersonEntry -> entry.personId?.takeIf { it.isNotBlank() }?.let { "PERSON:$it" }
+        is PersonEntry -> entry.personEventorRef?.takeIf { it.isNotBlank() }?.let { "PERSON:$it" }
         is TeamEntry -> entry.name.takeIf { it.isNotBlank() }?.let { "TEAM:$it" }
         else -> null
     }
@@ -164,7 +164,7 @@ class EventService {
     }
 
     private fun buildPersonCompositeKey(entry: PersonEntry): String? {
-        if (!entry.personId.isNullOrBlank()) return null // Has primary key
+        if (!entry.personEventorRef.isNullOrBlank()) return null // Has primary key
 
         val given = entry.name.given.trim().lowercase()
         val family = entry.name.family.trim().lowercase()
@@ -172,7 +172,7 @@ class EventService {
         if (given.isEmpty() && family.isEmpty()) return null // Insufficient data
 
         val orgRef = entry.organisation?.eventorRef?.trim()?.lowercase() ?: ""
-        return "P|$given|$family|$orgRef|${entry.classId}|${entry.raceId}"
+        return "P|$given|$family|$orgRef|${entry.classEventorRef}|${entry.raceEventorRef}"
     }
 
     private fun buildTeamCompositeKey(entry: TeamEntry): String? {
@@ -181,7 +181,7 @@ class EventService {
         val orgs = entry.organisations.joinToString("+") { it.eventorRef.lowercase() }
         if (orgs.isEmpty()) return null // Insufficient data
 
-        return "T|$orgs|${entry.classId}|${entry.raceId}"
+        return "T|$orgs|${entry.classEventorRef}|${entry.raceEventorRef}"
     }
 
     // ========================================
@@ -246,7 +246,7 @@ class EventService {
         }
 
         // Update other fields if they're more complete in incoming
-        incoming.competitorId?.let { existing.competitorId = it }
+        incoming.competitorEventorRef?.let { existing.competitorEventorRef = it }
         incoming.nationality?.let { existing.nationality = it }
         if (incoming.birthYear != null) existing.birthYear = incoming.birthYear
     }
@@ -258,11 +258,11 @@ class EventService {
         if (incoming.teamMembers.isEmpty()) return
 
         val membersByPersonId = existing.teamMembers
-            .filter { !it.personId.isNullOrBlank() }
-            .associateBy { it.personId!! }
+            .filter { !it.personEventorRef.isNullOrBlank() }
+            .associateBy { it.personEventorRef!! }
 
         incoming.teamMembers.forEach { incomingMember ->
-            val personId = incomingMember.personId ?: return@forEach
+            val personId = incomingMember.personEventorRef ?: return@forEach
             val existingMember = membersByPersonId[personId] ?: return@forEach
 
             if (incomingMember.punchingUnits.isEmpty()) return@forEach
