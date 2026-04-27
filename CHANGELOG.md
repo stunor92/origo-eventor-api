@@ -1,5 +1,12 @@
 # Changelog
 
+## [12.0.4](https://github.com/stunor92/origo-eventor-api/compare/v12.0.3...v12.0.4) (2026-04-27)
+
+
+### Performance Improvements
+
+* parallelize Eventor API calls in /event-list/me to reduce response time ([#307](https://github.com/stunor92/origo-eventor-api/issues/307)) ([1a94103](https://github.com/stunor92/origo-eventor-api/commit/1a941035fade830c17e3719c9973c8677ba76511))
+
 ## [12.0.3](https://github.com/stunor92/origo-eventor-api/compare/v12.0.2...v12.0.3) (2026-01-15)
 
 
