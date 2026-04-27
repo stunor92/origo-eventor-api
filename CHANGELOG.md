@@ -1,5 +1,12 @@
 # Changelog
 
+## [12.0.5](https://github.com/stunor92/origo-eventor-api/compare/v12.0.4...v12.0.5) (2026-04-27)
+
+
+### Bug Fixes
+
+* make entries identifiable ([765a971](https://github.com/stunor92/origo-eventor-api/commit/765a97197c7cbdeb503c90e7088242c9f20a724f))
+
 ## [12.0.4](https://github.com/stunor92/origo-eventor-api/compare/v12.0.3...v12.0.4) (2026-04-27)
 
 
