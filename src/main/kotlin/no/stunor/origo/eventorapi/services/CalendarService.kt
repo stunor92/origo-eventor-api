@@ -18,6 +18,8 @@ import java.time.LocalDate
 import java.util.UUID
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import jakarta.annotation.PreDestroy
 
 @Service
 class CalendarService(
@@ -30,7 +32,19 @@ class CalendarService(
 
     private val log = LoggerFactory.getLogger(this.javaClass)
 
-    private val executor = Executors.newCachedThreadPool()
+    // I/O-bound thread pool: sized at 4× available processors to saturate network calls without over-allocating
+    private val executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() * 4)
+
+    // Timeout for waiting on a batch of parallel Eventor API calls (HTTP timeout is 6s, so 30s is a safe upper bound)
+    private val batchTimeoutSeconds = 30L
+
+    @PreDestroy
+    fun shutdownExecutor() {
+        executor.shutdown()
+        if (!executor.awaitTermination(10, TimeUnit.SECONDS)) {
+            executor.shutdownNow()
+        }
+    }
 
     private var calendarConverter = CalendarConverter(
         organisationRepository = organisationRepository,
@@ -60,11 +74,18 @@ class CalendarService(
 
         val futures = persons.mapNotNull { person ->
             val eventor = eventorRepository.findById(person.eventorId) ?: return@mapNotNull null
-            CompletableFuture.supplyAsync({ processPersonEntries(person, eventor) }, executor)
+            CompletableFuture
+                .supplyAsync({ processPersonEntries(person, eventor) }, executor)
+                .exceptionally { ex ->
+                    log.warn("Failed to fetch calendar entries for person {} on eventor {}: {}", person.eventorRef, person.eventorId, ex.message)
+                    emptyList()
+                }
         }
 
+        CompletableFuture.allOf(*futures.toTypedArray()).get(batchTimeoutSeconds, TimeUnit.SECONDS)
+
         val raceList = mutableListOf<CalendarRace>()
-        futures.forEach { mergeRaces(raceList, it.get()) }
+        futures.forEach { mergeRaces(raceList, it.join()) }
         return raceList
     }
 
@@ -79,7 +100,10 @@ class CalendarService(
                 fromDate = LocalDate.now().minusDays(personalEntriesStart),
                 toDate = LocalDate.now().plusDays(personalEntriesEnd)
             )
-        }, executor)
+        }, executor).exceptionally { ex ->
+            log.warn("Failed to fetch organisation entries for person {} on eventor {}: {}", person.eventorRef, person.eventorId, ex.message)
+            org.iof.eventor.EntryList()
+        }
 
         val startsFuture = CompletableFuture.supplyAsync({
             eventorService.getGetPersonalStarts(
@@ -89,7 +113,10 @@ class CalendarService(
                 fromDate = LocalDate.now().minusDays(personalStartsStart),
                 toDate = LocalDate.now().plusDays(personalStartsEnd)
             )
-        }, executor)
+        }, executor).exceptionally { ex ->
+            log.warn("Failed to fetch personal starts for person {} on eventor {}: {}", person.eventorRef, person.eventorId, ex.message)
+            null
+        }
 
         val resultsFuture = CompletableFuture.supplyAsync({
             eventorService.getGetPersonalResults(
@@ -99,12 +126,18 @@ class CalendarService(
                 fromDate = LocalDate.now().minusDays(personalResultsStart),
                 toDate = LocalDate.now().plusDays(personalResultsEnd)
             )
-        }, executor)
+        }, executor).exceptionally { ex ->
+            log.warn("Failed to fetch personal results for person {} on eventor {}: {}", person.eventorRef, person.eventorId, ex.message)
+            null
+        }
 
-        val entryList = entriesFuture.get()
+        // Wait for all three in parallel, then build event class map (which also fires parallel requests)
+        CompletableFuture.allOf(entriesFuture, startsFuture, resultsFuture).get(batchTimeoutSeconds, TimeUnit.SECONDS)
+
+        val entryList = entriesFuture.join()
         val eventClassMap = buildEventClassMap(entryList, eventor)
-        val startListList = startsFuture.get()
-        val resultListList = resultsFuture.get()
+        val startListList = startsFuture.join()
+        val resultListList = resultsFuture.join()
 
         return eventClassMap.generateCalendarRaceForPerson(
             eventor,
@@ -130,13 +163,21 @@ class CalendarService(
 
         if (raceToEventId.isEmpty()) return mutableMapOf()
 
-        // Fetch all unique event class lists in parallel
+        // Fetch all unique event class lists in parallel, skipping any that fail
         val uniqueEventIds = raceToEventId.values.distinct()
-        val classesByEventId: Map<String, org.iof.eventor.EventClassList> = uniqueEventIds
-            .map { eventId ->
-                eventId to CompletableFuture.supplyAsync({ eventorService.getEventClasses(eventor, eventId) }, executor)
-            }
-            .mapNotNull { (eventId, future) -> future.get()?.let { eventId to it } }
+        val classFutures: List<Pair<String, CompletableFuture<org.iof.eventor.EventClassList?>>> = uniqueEventIds.map { eventId ->
+            eventId to CompletableFuture
+                .supplyAsync({ eventorService.getEventClasses(eventor, eventId) }, executor)
+                .exceptionally { ex ->
+                    log.warn("Failed to fetch event classes for event {} on eventor {}: {}", eventId, eventor.id, ex.message)
+                    null
+                }
+        }
+
+        CompletableFuture.allOf(*classFutures.map { it.second }.toTypedArray()).get(batchTimeoutSeconds, TimeUnit.SECONDS)
+
+        val classesByEventId: Map<String, org.iof.eventor.EventClassList> = classFutures
+            .mapNotNull { (eventId, future) -> future.join()?.let { eventId to it } }
             .toMap()
 
         // Map raceId -> EventClassList
