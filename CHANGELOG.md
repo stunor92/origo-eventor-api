@@ -1,5 +1,12 @@
 # Changelog
 
+## [12.0.6](https://github.com/stunor92/origo-eventor-api/compare/v12.0.5...v12.0.6) (2026-04-28)
+
+
+### Performance Improvements
+
+* improve performance on event and calendar services ([dc72f6f](https://github.com/stunor92/origo-eventor-api/commit/dc72f6ff2048d2ff0b74d534ab99440400a44e30))
+
 ## [12.0.5](https://github.com/stunor92/origo-eventor-api/compare/v12.0.4...v12.0.5) (2026-04-27)
 
 
