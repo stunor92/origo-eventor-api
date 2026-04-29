@@ -1,5 +1,12 @@
 # Changelog
 
+## [12.0.7](https://github.com/stunor92/origo-eventor-api/compare/v12.0.6...v12.0.7) (2026-04-29)
+
+
+### Bug Fixes
+
+* eventClassId is mandatory ([d817656](https://github.com/stunor92/origo-eventor-api/commit/d817656f609f26eb114d970aca645f0588380269))
+
 ## [12.0.6](https://github.com/stunor92/origo-eventor-api/compare/v12.0.5...v12.0.6) (2026-04-28)
 
 
