@@ -10,8 +10,8 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          jwk-set-uri: ${SUPABASE_URL:}/auth/v1/.well-known/jwks.json
-          issuer-uri: ${SUPABASE_URL:}.supabase.co/auth/v1
+          jwk-set-uri: ${SUPABASE_URL}/auth/v1/.well-known/jwks.json
+          issuer-uri: ${SUPABASE_URL}/auth/v1
   datasource:
     url: ${POSTGRES_DB:jdbc:postgresql://127.0.0.1:54322/postgres}
     username: ${POSTGRES_USER:postgres}
