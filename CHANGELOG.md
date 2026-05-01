@@ -1,5 +1,13 @@
 # Changelog
 
+## [12.0.8](https://github.com/stunor92/origo-eventor-api/compare/v12.0.7...v12.0.8) (2026-05-01)
+
+
+### Bug Fixes
+
+* use supabase_url from env variables ([58ac3f3](https://github.com/stunor92/origo-eventor-api/commit/58ac3f3e0f4335255204387d26aa3b13af4a23a5))
+* use supabase_url from env variables ([d8079b7](https://github.com/stunor92/origo-eventor-api/commit/d8079b71891389f8f7127d0304801c526eab6280))
+
 ## [12.0.7](https://github.com/stunor92/origo-eventor-api/compare/v12.0.6...v12.0.7) (2026-04-29)
 
 
