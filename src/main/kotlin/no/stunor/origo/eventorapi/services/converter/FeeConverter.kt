@@ -6,6 +6,19 @@ import no.stunor.origo.eventorapi.model.event.Fee
 
 class FeeConverter {
     companion object {
+        /**
+         * Parses a decimal string that may use either comma or period as decimal separator.
+         * Handles European format (12,5) and US/English format (12.5).
+         *
+         * @param value The string to parse
+         * @return The parsed double value
+         * @throws NumberFormatException if the string cannot be parsed
+         */
+        private fun parseDecimal(value: String): Double {
+            // Replace comma with period to normalize decimal separator
+            return value.replace(',', '.').toDouble()
+        }
+
         fun convertEntryFees(
             entryFees: org.iof.eventor.EntryFeeList?,
             event: Event,
@@ -30,8 +43,8 @@ class FeeConverter {
                 eventorRef = entryFee.entryFeeId.content,
                 name = entryFee.name.content,
                 currency = if (entryFee.valueOperator == "fixed" && entryFee.amount != null) entryFee.amount.currency else null,
-                amount = if (entryFee.valueOperator == "fixed" && entryFee.amount != null) entryFee.amount.content.toDouble() else null,
-                externalFee = if (entryFee.externalFee != null) entryFee.externalFee.content.toDouble() else null,
+                amount = if (entryFee.valueOperator == "fixed" && entryFee.amount != null) parseDecimal(entryFee.amount.content) else null,
+                externalFee = if (entryFee.externalFee != null) parseDecimal(entryFee.externalFee.content) else null,
                 percentageSurcharge = if (entryFee.valueOperator == "percent" && entryFee.amount != null) entryFee.amount.content.toInt() else null,
                 validFrom = if (entryFee.validFromDate != null) TimeStampConverter.parseDate(
                     "${entryFee.validFromDate.date.content} ${entryFee.validFromDate.clock.content}",

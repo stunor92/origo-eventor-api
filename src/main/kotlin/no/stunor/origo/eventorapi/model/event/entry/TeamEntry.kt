@@ -6,17 +6,18 @@ import java.util.UUID
 
 
 class TeamEntry (
+    override var id: UUID = UUID.randomUUID(),
     override var entryId: String = UUID.randomUUID().toString(),
-    override var raceId: String = "",
+    override var raceEventorRef: String = "",
     var name: String = "",
     var organisations: MutableList<Organisation> = mutableListOf(),
     var teamMembers: MutableList<TeamMember> = mutableListOf(),
-    override var classId: String = "",
+    override var classEventorRef: String = "",
     override var bib: String? = null,
     override var status: EntryStatus,
     override var startTime: Timestamp? = null,
     override var finishTime: Timestamp? = null,
     override var result: Result? = null
 ) :  Entry(
-    entryId, raceId, classId, bib, status, startTime, finishTime, result
+    id, entryId, raceEventorRef, classEventorRef, bib, status, startTime, finishTime, result
 )

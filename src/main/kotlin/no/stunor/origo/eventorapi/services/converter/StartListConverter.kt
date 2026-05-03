@@ -52,9 +52,9 @@ class StartListConverter {
         raceStart: org.iof.eventor.RaceStart
     ): Entry {
         return PersonEntry(
-            raceId = raceStart.eventRaceId.content,
-            classId = classStart.eventClass.eventClassId.content,
-            personId = if (personStart.person.personId != null)
+            raceEventorRef = raceStart.eventRaceId.content,
+            classEventorRef = classStart.eventClass.eventClassId.content,
+            personEventorRef = if (personStart.person.personId != null)
                 personStart.person.personId.content
             else null,
             name = personConverter.convertPersonName(personStart.person.personName),
@@ -91,9 +91,9 @@ class StartListConverter {
         personStart: org.iof.eventor.PersonStart
     ): Entry {
         return PersonEntry(
-            raceId = event.eventRace[0].eventRaceId.content,
-            classId = classStart.eventClass.eventClassId.content,
-            personId = if (personStart.person.personId != null) personStart.person.personId.content else null,
+            raceEventorRef = event.eventRace[0].eventRaceId.content,
+            classEventorRef = classStart.eventClass.eventClassId.content,
+            personEventorRef = if (personStart.person.personId != null) personStart.person.personId.content else null,
             name = personConverter.convertPersonName(personStart.person.personName),
             organisation = if (personStart.organisation != null)
                 organisationConverter.convertOrganisation(personStart.organisation, eventor.id)
@@ -125,8 +125,8 @@ class StartListConverter {
         teamStart: org.iof.eventor.TeamStart
     ): Entry {
         return TeamEntry(
-            raceId = event.eventRace[0].eventRaceId.content,
-            classId = classStart.eventClass.eventClassId.content,
+            raceEventorRef = event.eventRace[0].eventRaceId.content,
+            classEventorRef = classStart.eventClass.eventClassId.content,
             name = teamStart.teamName.content,
             organisations = organisationConverter.convertOrganisations(
                 organisations = teamStart.organisationIdOrOrganisationOrCountryId,
@@ -156,7 +156,7 @@ class StartListConverter {
 
     private fun convertTeamMember(eventor: Eventor, teamMember: org.iof.eventor.TeamMemberStart): TeamMember {
         return TeamMember(
-            personId = if (teamMember.person != null && teamMember.person.personId != null)
+            personEventorRef = if (teamMember.person != null && teamMember.person.personId != null)
                 teamMember.person.personId.content
             else null,
             name = if (teamMember.person != null)

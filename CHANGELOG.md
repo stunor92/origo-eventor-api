@@ -1,5 +1,220 @@
 # Changelog
 
+## [2.0.0](https://github.com/stunor92/origo-eventor-api/compare/v12.0.10...v2.0.0) (2026-05-03)
+
+
+### ⚠ BREAKING CHANGES
+
+* delete delete endpoint that should be handled in supabase. ([#269](https://github.com/stunor92/origo-eventor-api/issues/269))
+* migrate to jdk 25 ([#258](https://github.com/stunor92/origo-eventor-api/issues/258))
+* migrate from JPA/Hibernate to Spring JDBC ([#239](https://github.com/stunor92/origo-eventor-api/issues/239))
+* Use generated uuid as id on entities ([#192](https://github.com/stunor92/origo-eventor-api/issues/192))
+* Fees is not relevant to return in responses for this application
+* Use more inlined objects instead of references
+* Migated the event-endpoint to supabase
+* Migated the event-endpoint to supabase
+* Migrate auth person to use supabase ([#107](https://github.com/stunor92/origo-eventor-api/issues/107))
+* Rollback refactoring ([#88](https://github.com/stunor92/origo-eventor-api/issues/88))
+* Deprecate one punchingUnit and use list instead ([#86](https://github.com/stunor92/origo-eventor-api/issues/86))
+* try to fix the prod deploy pipeline
+* upgrade to java 23
+
+### Features
+
+* Add api for delete person ([896f2c4](https://github.com/stunor92/origo-eventor-api/commit/896f2c4dbecc3e147498a2019214dc56c2967c4c))
+* add auto-merge workflow for SNAPSHOT release PRs ([#219](https://github.com/stunor92/origo-eventor-api/issues/219)) ([67571d8](https://github.com/stunor92/origo-eventor-api/commit/67571d8556eea6aa56751514e23a7598fbbfac8d))
+* Add automatic release via prof branch ([55ee347](https://github.com/stunor92/origo-eventor-api/commit/55ee34757593825f75f4a6ef3ef7ff942f4519d3))
+* add release-please json files ([02193d8](https://github.com/stunor92/origo-eventor-api/commit/02193d81b9f04214ad35d024c6c9eacafaee0b53))
+* also incliude org-ids on entrylist ([373c1fe](https://github.com/stunor92/origo-eventor-api/commit/373c1fec80dd33836b5b08640cffa57b4418a072))
+* Automatic download fees when fetching event ([89e5bb1](https://github.com/stunor92/origo-eventor-api/commit/89e5bb19244e69c8c8f176f2a51491e835a15eaf))
+* back to tag triggered deploy ([1895535](https://github.com/stunor92/origo-eventor-api/commit/189553522a810b244f712e723b37ff2033a96fcc))
+* checkout code after release-please ([57bc13b](https://github.com/stunor92/origo-eventor-api/commit/57bc13b5651481342bbcd09936a5676a8676e970))
+* checkout code before release-please ([6a5bd42](https://github.com/stunor92/origo-eventor-api/commit/6a5bd42c117d262f5704778a24ea2df3f0e88b58))
+* Cleanup application config and connect to local db locally ([7c14526](https://github.com/stunor92/origo-eventor-api/commit/7c14526e5955b63a347e97d5212fe4a5bdf8bf1c))
+* Codeql scan on all branch ([#181](https://github.com/stunor92/origo-eventor-api/issues/181)) ([3f432a7](https://github.com/stunor92/origo-eventor-api/commit/3f432a7fb03e07215eef9334c0d2f882a5df0864))
+* Deprecate one punchingUnit and use list instead ([#86](https://github.com/stunor92/origo-eventor-api/issues/86)) ([da15428](https://github.com/stunor92/origo-eventor-api/commit/da15428501285062ca9be1e93056c26bda45f566))
+* Fees is not relevant to return in responses for this application ([d33da27](https://github.com/stunor92/origo-eventor-api/commit/d33da2718db93638926f2d5a85a0588ef20e2ea1))
+* Fees is updated in database when a event is fetched ([3ffaf8a](https://github.com/stunor92/origo-eventor-api/commit/3ffaf8a36cd75de7e109a1a2f0abf7e44ade1ede))
+* fix release-please-config.json with package-name ([a8b7e8e](https://github.com/stunor92/origo-eventor-api/commit/a8b7e8e92c0bf91ec6f4c09fa2d911c9dd31efad))
+* implemented disconnect eventor-person and delete user ([de7f7d6](https://github.com/stunor92/origo-eventor-api/commit/de7f7d6847d33b81c2974fb06879226c833ee1e5))
+* Improve ci-pipeline ([#184](https://github.com/stunor92/origo-eventor-api/issues/184)) ([db39b0d](https://github.com/stunor92/origo-eventor-api/commit/db39b0d7d13161c5adff94150c5472cad7f0a4b2))
+* Migated the event-endpoint to supabase ([ac04f3b](https://github.com/stunor92/origo-eventor-api/commit/ac04f3bb16fcc5a5aba4a8c3a737ca5ab19975d8))
+* Migated the event-endpoint to supabase ([c29a9e3](https://github.com/stunor92/origo-eventor-api/commit/c29a9e3c651fd722fdab2cbbc445a1709776dc30))
+* Migrate auth person to use supabase ([#107](https://github.com/stunor92/origo-eventor-api/issues/107)) ([2c998eb](https://github.com/stunor92/origo-eventor-api/commit/2c998eb10312fb5a7a76f40c36e02c9d8ec3c5a0))
+* migrate from JPA/Hibernate to Spring JDBC ([#239](https://github.com/stunor92/origo-eventor-api/issues/239)) ([17bb95f](https://github.com/stunor92/origo-eventor-api/commit/17bb95f1766cca3be8735c266764259e645721fb))
+* modify release.yml ([f2b0545](https://github.com/stunor92/origo-eventor-api/commit/f2b05457c7ded757dbebc53545281d49f05b5f4c))
+* more pipeline stuff ([b0e2e50](https://github.com/stunor92/origo-eventor-api/commit/b0e2e50d2d7ea19a64b6c1e50da67a994607b257))
+* Remove deploy with GHA ([#104](https://github.com/stunor92/origo-eventor-api/issues/104)) ([92f5a7d](https://github.com/stunor92/origo-eventor-api/commit/92f5a7d71369b9bd426a6bd007e37632fed0238c))
+* send only organisation with id in response ([ee29d85](https://github.com/stunor92/origo-eventor-api/commit/ee29d858fcce6d56edc3a9e79ec5970df929ba04))
+* support multiple punchingUnits in event ([ad405f7](https://github.com/stunor92/origo-eventor-api/commit/ad405f79b305567d2fa86f1f5e2499996382f3ac))
+* support multiple punchingUnits in event ([4660031](https://github.com/stunor92/origo-eventor-api/commit/466003184f93aa993311b8faca303e07dc7c4fb6))
+* testing release ([939ae57](https://github.com/stunor92/origo-eventor-api/commit/939ae57a7a6bd181fb63044ad4358cf9105f86d9))
+* try again ([c90bc44](https://github.com/stunor92/origo-eventor-api/commit/c90bc44408c501763e8a85c9a35c43941485c1c0))
+* update release-please-config.json ([650f7b7](https://github.com/stunor92/origo-eventor-api/commit/650f7b798b60fe6e17e8c054f1b7bc0d918aff28))
+* upgrade to java 23 ([cedccf7](https://github.com/stunor92/origo-eventor-api/commit/cedccf73e393ef6d3a8222e63a9345336f592ac1))
+* upgrade to java 23 also in dockerfile ([6bfaf6d](https://github.com/stunor92/origo-eventor-api/commit/6bfaf6d5ebe7e47440c6df6ff052f529537776ad))
+* upgrade to java 23 also in dockerfile ([13431e5](https://github.com/stunor92/origo-eventor-api/commit/13431e507746c1bc627dce152f50860ca24cc1e2))
+* Use generated uuid as id on entities ([#192](https://github.com/stunor92/origo-eventor-api/issues/192)) ([d38215b](https://github.com/stunor92/origo-eventor-api/commit/d38215b1479a0fea43313e6660f822ff3e104d1f))
+* Use joining table for organisers ([b6e5e91](https://github.com/stunor92/origo-eventor-api/commit/b6e5e9128b564db074eaf668361e6a0e4c2b686b))
+* Use more inlined objects instead of references ([611f581](https://github.com/stunor92/origo-eventor-api/commit/611f5810a59a6f5cf74b20b2a703cc498744e9d3))
+
+
+### Bug Fixes
+
+* add config file ([313d9d3](https://github.com/stunor92/origo-eventor-api/commit/313d9d38b4e06baa6be7cf347b684941becded01))
+* Add hypersistence again ([#186](https://github.com/stunor92/origo-eventor-api/issues/186)) ([22e5e71](https://github.com/stunor92/origo-eventor-api/commit/22e5e71c89bd81cf72af53a1097b0c9c8edab0b6))
+* add manifest file ([df2a1b6](https://github.com/stunor92/origo-eventor-api/commit/df2a1b6a3b271e4ddcb54c1f6a0c8701ca6ab02a))
+* Add missing depencency ([838ed44](https://github.com/stunor92/origo-eventor-api/commit/838ed44969d30fd265090b78368c07cb1571be40))
+* add name to release-please step ([ac0a488](https://github.com/stunor92/origo-eventor-api/commit/ac0a48879d14199af0f7fd438cbe719fac9fbf3b))
+* Add punching-units on start and result list ([#200](https://github.com/stunor92/origo-eventor-api/issues/200)) ([023bdfe](https://github.com/stunor92/origo-eventor-api/commit/023bdfece95f5579ec67e2bd099b7bd7f7bda186))
+* add spring-context framework ([56f401b](https://github.com/stunor92/origo-eventor-api/commit/56f401ba1a778436dc74e2b24578b7af3b038547))
+* add timestamp for saved person ([#254](https://github.com/stunor92/origo-eventor-api/issues/254)) ([dabd972](https://github.com/stunor92/origo-eventor-api/commit/dabd972926f5602ef974dfbca9d688d82ab4b150))
+* app handles invalid tokens with fallback to no auth ([#277](https://github.com/stunor92/origo-eventor-api/issues/277)) ([bbc387c](https://github.com/stunor92/origo-eventor-api/commit/bbc387cc9ec845fd77c7d75bcd174794545d12e1))
+* back to simple setup ([9ce54b7](https://github.com/stunor92/origo-eventor-api/commit/9ce54b76016ce8ad44bef6e3b8be49a24ad1ba22))
+* batch load memberships in sql query ([#265](https://github.com/stunor92/origo-eventor-api/issues/265)) ([8bb8844](https://github.com/stunor92/origo-eventor-api/commit/8bb8844a56d6ed3f82655f94c25d15745630732f))
+* Cast uuid to string in select query ([d513912](https://github.com/stunor92/origo-eventor-api/commit/d51391287cd8ab1454e3824ddf7867fad65b0fef))
+* Change from apiKey to eventorApiKey columns ([ac09a50](https://github.com/stunor92/origo-eventor-api/commit/ac09a50f0b3a1622c7f3b8bb9c9b0eea7481742b))
+* Change from apiKey to eventorApiKey columns ([26e97b2](https://github.com/stunor92/origo-eventor-api/commit/26e97b226732f18942781cdba28a32c52f0944d8))
+* debug release output ([d658161](https://github.com/stunor92/origo-eventor-api/commit/d6581616f48f204bd360cc6eeef1babee263eb86))
+* delete delete endpoint that should be handled in supabase. ([#269](https://github.com/stunor92/origo-eventor-api/issues/269)) ([dc2c785](https://github.com/stunor92/origo-eventor-api/commit/dc2c785a7b4fecbfaf4689fad1d61d42aa9fdf98))
+* deploy on all tags ([9a9efe5](https://github.com/stunor92/origo-eventor-api/commit/9a9efe5ca59b0272f29e1b4388a756b42ef21f0c))
+* Distroless dockerimage ([f4a2bf8](https://github.com/stunor92/origo-eventor-api/commit/f4a2bf882632e034f7188e447a8d243c214a1033))
+* do not log PojoBeanMapper warnings ([f437b73](https://github.com/stunor92/origo-eventor-api/commit/f437b73014da12794e7d08004f1aeb2e77c2c79c))
+* Dump spring boot starter to 3.5.4 ([691fd72](https://github.com/stunor92/origo-eventor-api/commit/691fd72e1bfaf87381531c2b1890d373448ccd93))
+* entry-fees with "," must be parsed correctly ([6e10085](https://github.com/stunor92/origo-eventor-api/commit/6e100853331521aeefdeb049c5d42f91075fcbbc))
+* eventClassId is mandatory ([d817656](https://github.com/stunor92/origo-eventor-api/commit/d817656f609f26eb114d970aca645f0588380269))
+* filter races outside requested date-range in calendar-list service ([#261](https://github.com/stunor92/origo-eventor-api/issues/261)) ([0f6e41c](https://github.com/stunor92/origo-eventor-api/commit/0f6e41ce13760733b3bfda088c657080bd0f8f66))
+* fix error with entry-list if person has changed class after web-entry ([239e834](https://github.com/stunor92/origo-eventor-api/commit/239e834ffd72858081064e8eeac10a7d00c3c483))
+* Fix nullpointer for team-entries ([9e61b40](https://github.com/stunor92/origo-eventor-api/commit/9e61b406cfc6872b813675d116019c4c77f1d05c))
+* Fix some stuff with CalendarRace ([b823891](https://github.com/stunor92/origo-eventor-api/commit/b8238917c465325e1b517ab975342cb370024d57))
+* fix sql-query to fetch persons from userId ([#242](https://github.com/stunor92/origo-eventor-api/issues/242)) ([c0f7cb2](https://github.com/stunor92/origo-eventor-api/commit/c0f7cb27630e1f599238333a521329a425636b46))
+* fix the release-please action ([1a38ab1](https://github.com/stunor92/origo-eventor-api/commit/1a38ab110c95503f4eaa86ac7cb9d14461bcf440))
+* fix user_person-mapping ([#251](https://github.com/stunor92/origo-eventor-api/issues/251)) ([bf8fdac](https://github.com/stunor92/origo-eventor-api/commit/bf8fdac4b91038a77b743ea88c27177af50a402c))
+* fix-reference to manifest and config ([9b812e7](https://github.com/stunor92/origo-eventor-api/commit/9b812e7e822bd1d33096741786b0f62cde286663))
+* Fixed OrganisationEntries with test ([157ed5e](https://github.com/stunor92/origo-eventor-api/commit/157ed5e9d094fe0079dee9e88460f452b6c4147c))
+* Fixed problems with inserting events ([bdbfa0c](https://github.com/stunor92/origo-eventor-api/commit/bdbfa0cb7ee0efd10c97a01f847f5da545571836))
+* Fixed the timestamp problem ([8c18748](https://github.com/stunor92/origo-eventor-api/commit/8c1874864a9c6872e23b1f8989ba30c3db5496d6))
+* Improve the combination of result-, start- and entry-list ([4c035ba](https://github.com/stunor92/origo-eventor-api/commit/4c035bab0ef5bc47f880977511baeecf4b76d936))
+* include patch tag in release job ([26df151](https://github.com/stunor92/origo-eventor-api/commit/26df15181742cda8b9bac6b66ebbd20b8237dbb9))
+* Instant time in CalendarRace ([18ea38c](https://github.com/stunor92/origo-eventor-api/commit/18ea38ce6079f8e30a50639197f6aee3d9d1f7c8))
+* make entries identifiable ([765a971](https://github.com/stunor92/origo-eventor-api/commit/765a97197c7cbdeb503c90e7088242c9f20a724f))
+* manifest-file with a dot ([613d274](https://github.com/stunor92/origo-eventor-api/commit/613d274a55b96a82bb799f0fa843127bad88693a))
+* map userId from String to UUID ([#248](https://github.com/stunor92/origo-eventor-api/issues/248)) ([aeaf8b3](https://github.com/stunor92/origo-eventor-api/commit/aeaf8b3751d81145584e64cedd404ccaba481cb2))
+* migrate to modern and rotating jwt tokens with spring-boot-security ([#272](https://github.com/stunor92/origo-eventor-api/issues/272)) ([fe9abff](https://github.com/stunor92/origo-eventor-api/commit/fe9abffc7e9b1bd60567b62481c193a0084d4fc6))
+* more release-please debuging ([fa2f96b](https://github.com/stunor92/origo-eventor-api/commit/fa2f96b4a2c2f36672e6d9a8504de32b7d06e21c))
+* Nullpointer on OrganisationConverter ([80124c0](https://github.com/stunor92/origo-eventor-api/commit/80124c02c003ffb4a6a221b6e0417208a2827180))
+* Nullpointer on OrganisationConverter ([#100](https://github.com/stunor92/origo-eventor-api/issues/100)) ([51188be](https://github.com/stunor92/origo-eventor-api/commit/51188bedbd8e7dbbfe03239f8ff8392ed3406887))
+* Only codeQL on prs ([#182](https://github.com/stunor92/origo-eventor-api/issues/182)) ([d57f3d2](https://github.com/stunor92/origo-eventor-api/commit/d57f3d20a105635b19b6eccaa8617a8e1415daec))
+* Optimize entry-lists from eventor ([#203](https://github.com/stunor92/origo-eventor-api/issues/203)) ([083da24](https://github.com/stunor92/origo-eventor-api/commit/083da24a6c25de51fc2d7e203418b9268a352cb7))
+* print all outputs ([3bbf042](https://github.com/stunor92/origo-eventor-api/commit/3bbf0421edcd7c22daa28003981299bb084253e9))
+* print output ([502ebf3](https://github.com/stunor92/origo-eventor-api/commit/502ebf38d32df40ae4252ddead8e7e7044d67ffd))
+* Push image to github when releae is done ([5a1a9ea](https://github.com/stunor92/origo-eventor-api/commit/5a1a9ea4ea9e27b295fbb9379ae600df1e1d2dc6))
+* refactor entrylist ([#231](https://github.com/stunor92/origo-eventor-api/issues/231)) ([1c13ae3](https://github.com/stunor92/origo-eventor-api/commit/1c13ae39ad6b7c4ab549757e6fcac1fee294d3bd))
+* release-type: maven ([50afe15](https://github.com/stunor92/origo-eventor-api/commit/50afe155137d120b8fffb3523dbede45246fd63c))
+* remove debugging print in release.yml ([5d84f47](https://github.com/stunor92/origo-eventor-api/commit/5d84f4740ca0c41bc822e062f8f59444228d3f4b))
+* remove duplicated eventor date-format ([4c2610a](https://github.com/stunor92/origo-eventor-api/commit/4c2610af26e672862d63e6821832f533050d3322))
+* Remove hypersistence depndency ([a365fdc](https://github.com/stunor92/origo-eventor-api/commit/a365fdc4d08d47eaaacdd82cdecdc7d6a1e556e8))
+* remove legacy interceptor in test ([#275](https://github.com/stunor92/origo-eventor-api/issues/275)) ([b1da818](https://github.com/stunor92/origo-eventor-api/commit/b1da81893d81569f373613ce4e257087b755dfd9))
+* remove organisation object for competitors ([2fedc9a](https://github.com/stunor92/origo-eventor-api/commit/2fedc9aab3c896b589ecba060610e0dc42af5454))
+* remove whitespace ([f4f0eb0](https://github.com/stunor92/origo-eventor-api/commit/f4f0eb0301ae140238c143dfde2757cfced5576e))
+* Rename eventClasses ([7a29178](https://github.com/stunor92/origo-eventor-api/commit/7a291783de2d663bf1d96fae98e3a6160f3a41cf))
+* Rename eventClassId to classId ([17b3dbc](https://github.com/stunor92/origo-eventor-api/commit/17b3dbcdf710817ea3d1b53c6e5644b905f06255))
+* rename releases_created check ([7e0c1a5](https://github.com/stunor92/origo-eventor-api/commit/7e0c1a59ceead12a0fadf243983f9bd826eaa7af))
+* replace fixed thread pool with bounded SynchronousQueue pool to prevent nested parallelism deadlock ([#322](https://github.com/stunor92/origo-eventor-api/issues/322)) ([89eebd4](https://github.com/stunor92/origo-eventor-api/commit/89eebd4d106fa69448bbbcaa98814925f0823935))
+* Return eventorId for person in json ([#197](https://github.com/stunor92/origo-eventor-api/issues/197)) ([7e2d77d](https://github.com/stunor92/origo-eventor-api/commit/7e2d77d4679b717dce446d867b78191088d6b4c8))
+* Rollback refactoring ([#88](https://github.com/stunor92/origo-eventor-api/issues/88)) ([bc01759](https://github.com/stunor92/origo-eventor-api/commit/bc01759c945bffcc4edfe94a1bde372ebaea8d27))
+* run deploy when release is created ([735b9f7](https://github.com/stunor92/origo-eventor-api/commit/735b9f72f4e31d611d7efe622b13ced5dea51a8d))
+* set path to pom.xmm ([dfc91c5](https://github.com/stunor92/origo-eventor-api/commit/dfc91c501d86515756e2bfbc51abbf604d8e2b6a))
+* set release-type to maven ([7731e4d](https://github.com/stunor92/origo-eventor-api/commit/7731e4da93f5ea50f8c8271852ac5451fd50c329))
+* set target-branch to main ([ef9e9d7](https://github.com/stunor92/origo-eventor-api/commit/ef9e9d774ade4ee867755ce9018cce5ef03c5a5e))
+* simple release type ([e3e579a](https://github.com/stunor92/origo-eventor-api/commit/e3e579a9fceb9d45806d74e56d8bcb7aa243d4b6))
+* Skip major release tagging ([274c060](https://github.com/stunor92/origo-eventor-api/commit/274c060b544c2dd29d265b3bf3a5a695135518ca))
+* Specify jpa hibernate dialect ([ed5049b](https://github.com/stunor92/origo-eventor-api/commit/ed5049be0a946da30d39d28b47b1d9c0cf12f661))
+* Specify jwt algorithm used in supabase ([1211bd4](https://github.com/stunor92/origo-eventor-api/commit/1211bd4ad2ce01de34285ed1926e2dd211e8e9a3))
+* specify target branch ([551c59d](https://github.com/stunor92/origo-eventor-api/commit/551c59def85b2bfd692c74672c5453d37c0bb2aa))
+* spexify jws-algorithms to ES256 ([#276](https://github.com/stunor92/origo-eventor-api/issues/276)) ([8bb7dba](https://github.com/stunor92/origo-eventor-api/commit/8bb7dba40031581b38eb6d73b6a9904f1d9a8d6b))
+* support competitors without valid eventor-organisation in result-list ([f14630c](https://github.com/stunor92/origo-eventor-api/commit/f14630cefbd5f4b7e7fde912cdc427e924704c9d))
+* test paths_released output ([a3d3992](https://github.com/stunor92/origo-eventor-api/commit/a3d3992a244792f9c9b339244aaf630e2330f601))
+* test production deploy trigger ([#282](https://github.com/stunor92/origo-eventor-api/issues/282)) ([9181c34](https://github.com/stunor92/origo-eventor-api/commit/9181c34dee2c6d7823faef479314e871b2d34f06))
+* test triggering new deploy pipeline ([#279](https://github.com/stunor92/origo-eventor-api/issues/279)) ([a541c4d](https://github.com/stunor92/origo-eventor-api/commit/a541c4d5d3d180c49f2b69eef3fb2019f218fe84))
+* testing auto merge of snapshot-release ([#223](https://github.com/stunor92/origo-eventor-api/issues/223)) ([6b7115a](https://github.com/stunor92/origo-eventor-api/commit/6b7115a7b5bbd0c69739ea28d1e004f0412593bb))
+* try again ([5af581f](https://github.com/stunor92/origo-eventor-api/commit/5af581f869b193a93d6f8502d2267fbbdb2376a2))
+* try again ([bdca6aa](https://github.com/stunor92/origo-eventor-api/commit/bdca6aafeb56cdcda1594bfe414a39438afc06b3))
+* try again ([9881966](https://github.com/stunor92/origo-eventor-api/commit/98819665460c0862cb1c82b5c618a328075f11b1))
+* try to create tag when release is created ([5b436a7](https://github.com/stunor92/origo-eventor-api/commit/5b436a7ce6c7854cf92bc6c8267af40e8fb40ec0))
+* Try to fix competitor count in calendarserivce ([4daaf99](https://github.com/stunor92/origo-eventor-api/commit/4daaf999ab3b1b723f5dbb394ea7dade230df818))
+* try to fix the prod deploy pipeline ([f11ef7f](https://github.com/stunor92/origo-eventor-api/commit/f11ef7f70d4a6d8c67781019620d9fbcb5de3f4e))
+* Try to set Enumerated type in the array-types ([57b22a6](https://github.com/stunor92/origo-eventor-api/commit/57b22a68fd425838a51771ee071934a41b8cb7c3))
+* try to true check release_created ([33370aa](https://github.com/stunor92/origo-eventor-api/commit/33370aae42119015220009eb462af1147b1f6dda))
+* try to use default token ([3bd32b4](https://github.com/stunor92/origo-eventor-api/commit/3bd32b4362683aaba197559e080579cff07a2c55))
+* try to use release_created on job level ([aba18ba](https://github.com/stunor92/origo-eventor-api/commit/aba18ba227e33b89545e57fa85ad19ebf0661a7c))
+* update release.yml ([c012608](https://github.com/stunor92/origo-eventor-api/commit/c01260825a6904805921e2025e43f8e9ed033a54))
+* use googleapis/release-please-action@v4.1.3 ([e541724](https://github.com/stunor92/origo-eventor-api/commit/e54172483ab630fa313ec852b347657bca61563e))
+* Use instant for timestamp ([594cb32](https://github.com/stunor92/origo-eventor-api/commit/594cb327c8eafcf61fa30067daefbd73c55f4cde))
+* use jdk23 on codeql ([e8c6797](https://github.com/stunor92/origo-eventor-api/commit/e8c679701ca423465d4df2d704c8096efaf1d4af))
+* use supabase_url from env variables ([58ac3f3](https://github.com/stunor92/origo-eventor-api/commit/58ac3f3e0f4335255204387d26aa3b13af4a23a5))
+* use supabase_url from env variables ([d8079b7](https://github.com/stunor92/origo-eventor-api/commit/d8079b71891389f8f7127d0304801c526eab6280))
+* Use uid from token ([38a77f8](https://github.com/stunor92/origo-eventor-api/commit/38a77f81db28a175f4859ee1e07af7a3760674a9))
+* userId as UUID ([#245](https://github.com/stunor92/origo-eventor-api/issues/245)) ([d0cfcc2](https://github.com/stunor92/origo-eventor-api/commit/d0cfcc2b58643ae0728b51cd84826d7f5611c173))
+* wrong type of EntryBreak in CalendarRace ([9f00d20](https://github.com/stunor92/origo-eventor-api/commit/9f00d20fc59a937e4bd118df228187e7f9ade5ab))
+
+
+### Performance Improvements
+
+* improve performance on event and calendar services ([dc72f6f](https://github.com/stunor92/origo-eventor-api/commit/dc72f6ff2048d2ff0b74d534ab99440400a44e30))
+* optimize entry list merging when results are available ([#216](https://github.com/stunor92/origo-eventor-api/issues/216)) ([a913e94](https://github.com/stunor92/origo-eventor-api/commit/a913e94f7f350e23e7594179ff646c1016aa88f3))
+* parallelize Eventor API calls in /event-list/me to reduce response time ([#307](https://github.com/stunor92/origo-eventor-api/issues/307)) ([1a94103](https://github.com/stunor92/origo-eventor-api/commit/1a941035fade830c17e3719c9973c8677ba76511))
+
+
+### Miscellaneous Chores
+
+* migrate to jdk 25 ([#258](https://github.com/stunor92/origo-eventor-api/issues/258)) ([f34ec15](https://github.com/stunor92/origo-eventor-api/commit/f34ec15198dd07fbf54358388ea7d4f2b753bdbb))
+* release 1.0.0 ([cc960f9](https://github.com/stunor92/origo-eventor-api/commit/cc960f9fd2a32247acb4aac36b91122c888166f5))
+* release 2.0.0 ([c319cad](https://github.com/stunor92/origo-eventor-api/commit/c319cad36c484eeea372205ab00b5d9b3d804c24))
+
+## [12.0.10](https://github.com/stunor92/origo-eventor-api/compare/v12.0.9...v12.0.10) (2026-05-03)
+
+
+### Bug Fixes
+
+* entry-fees with "," must be parsed correctly ([6e10085](https://github.com/stunor92/origo-eventor-api/commit/6e100853331521aeefdeb049c5d42f91075fcbbc))
+
+## [12.0.9](https://github.com/stunor92/origo-eventor-api/compare/v12.0.8...v12.0.9) (2026-05-03)
+
+
+### Bug Fixes
+
+* fix error with entry-list if person has changed class after web-entry ([239e834](https://github.com/stunor92/origo-eventor-api/commit/239e834ffd72858081064e8eeac10a7d00c3c483))
+
+## [12.0.8](https://github.com/stunor92/origo-eventor-api/compare/v12.0.7...v12.0.8) (2026-05-01)
+
+
+### Bug Fixes
+
+* use supabase_url from env variables ([58ac3f3](https://github.com/stunor92/origo-eventor-api/commit/58ac3f3e0f4335255204387d26aa3b13af4a23a5))
+* use supabase_url from env variables ([d8079b7](https://github.com/stunor92/origo-eventor-api/commit/d8079b71891389f8f7127d0304801c526eab6280))
+
+## [12.0.7](https://github.com/stunor92/origo-eventor-api/compare/v12.0.6...v12.0.7) (2026-04-29)
+
+
+### Bug Fixes
+
+* eventClassId is mandatory ([d817656](https://github.com/stunor92/origo-eventor-api/commit/d817656f609f26eb114d970aca645f0588380269))
+
+## [12.0.6](https://github.com/stunor92/origo-eventor-api/compare/v12.0.5...v12.0.6) (2026-04-28)
+
+
+### Performance Improvements
+
+* improve performance on event and calendar services ([dc72f6f](https://github.com/stunor92/origo-eventor-api/commit/dc72f6ff2048d2ff0b74d534ab99440400a44e30))
+
+## [12.0.5](https://github.com/stunor92/origo-eventor-api/compare/v12.0.4...v12.0.5) (2026-04-27)
+
+
+### Bug Fixes
+
+* make entries identifiable ([765a971](https://github.com/stunor92/origo-eventor-api/commit/765a97197c7cbdeb503c90e7088242c9f20a724f))
+
 ## [12.0.4](https://github.com/stunor92/origo-eventor-api/compare/v12.0.3...v12.0.4) (2026-04-27)
 
 

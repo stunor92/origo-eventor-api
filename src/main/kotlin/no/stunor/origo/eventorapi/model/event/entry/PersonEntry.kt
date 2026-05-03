@@ -8,16 +8,17 @@ import java.sql.Timestamp
 import java.util.UUID
 
 data class PersonEntry (
+    override var id: UUID = UUID.randomUUID(),
     override var entryId: String = UUID.randomUUID().toString(),
-    override var raceId: String = "",
+    override var raceEventorRef: String = "",
     var name: PersonName = PersonName(),
-    var competitorId: String? = null,
-    var personId: String? = null,
+    var competitorEventorRef: String? = null,
+    var personEventorRef: String? = null,
     var organisation: Organisation? = null,
     var birthYear: Int? = null,
     var nationality: String? = null,
     var gender: Gender = Gender.Other,
-    override var classId: String = "",
+    override var classEventorRef: String = "",
     override var bib: String? = null,
     var punchingUnits: MutableList<PunchingUnit> = mutableListOf(),
     override var status: EntryStatus,
@@ -26,5 +27,5 @@ data class PersonEntry (
     override var result: Result? = null,
     var splitTimes: MutableList<SplitTime> = mutableListOf(),
 ) : Entry(
-        entryId, raceId, classId, bib, status, startTime, finishTime, result
+        id, entryId, raceEventorRef, classEventorRef, bib, status, startTime, finishTime, result
 )

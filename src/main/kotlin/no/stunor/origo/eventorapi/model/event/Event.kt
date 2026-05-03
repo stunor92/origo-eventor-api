@@ -6,7 +6,7 @@ import java.sql.Timestamp
 import java.util.*
 
 data class Event(
-    var id: UUID? = null,
+    var id: UUID? = UUID.randomUUID(),
     @JsonIgnore var eventorId: String = "",
     var eventorRef: String = "",
     var name: String = "",

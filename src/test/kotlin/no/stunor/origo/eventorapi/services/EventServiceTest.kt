@@ -172,8 +172,8 @@ class EventServiceTest {
 
         // Create real PersonEntry objects with IDs
         val mockEntries = listOf(
-            PersonEntry(personId = "person1", classId = "class1", raceId = "race1", status = EntryStatus.Finished),
-            PersonEntry(personId = "person2", classId = "class2", raceId = "race2", status = EntryStatus.Started)
+            PersonEntry(personEventorRef = "person1", classEventorRef = "class1", raceEventorRef = "race1", status = EntryStatus.Finished),
+            PersonEntry(personEventorRef = "person2", classEventorRef = "class2", raceEventorRef = "race2", status = EntryStatus.Started)
         )
 
         every { eventorRepository.findById(eventorId) } returns eventor

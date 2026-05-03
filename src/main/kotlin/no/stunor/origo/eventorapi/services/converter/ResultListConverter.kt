@@ -70,9 +70,9 @@ class ResultListConverter {
         personResult: org.iof.eventor.PersonResult
     ): Entry {
         return PersonEntry(
-            raceId = event.eventRace[0].eventRaceId.content,
-            classId = classResult.eventClass.eventClassId.content,
-            personId = if (personResult.person.personId != null) personResult.person.personId.content else null,
+            raceEventorRef = event.eventRace[0].eventRaceId.content,
+            classEventorRef = classResult.eventClass.eventClassId.content,
+            personEventorRef = if (personResult.person.personId != null) personResult.person.personId.content else null,
             name = personConverter.convertPersonName(personResult.person.personName),
             organisation = if(personResult.organisation != null)
                 organisationConverter.convertOrganisation(personResult.organisation, eventor.id)
@@ -108,9 +108,9 @@ class ResultListConverter {
         raceResult: org.iof.eventor.RaceResult
     ): Entry {
         return PersonEntry(
-            raceId = raceResult.eventRaceId.content,
-            classId = classResult.eventClass.eventClassId.content,
-            personId = if (personResult.person.personId != null) personResult.person.personId.content else null,
+            raceEventorRef = raceResult.eventRaceId.content,
+            classEventorRef = classResult.eventClass.eventClassId.content,
+            personEventorRef = if (personResult.person.personId != null) personResult.person.personId.content else null,
             name = personConverter.convertPersonName(personResult.person.personName),
             organisation = if(personResult.organisation != null)
                 organisationConverter.convertOrganisation(personResult.organisation, eventor.id)
@@ -158,8 +158,8 @@ class ResultListConverter {
         teamResult: org.iof.eventor.TeamResult
     ): Entry {
         return TeamEntry(
-            raceId = event.eventRace[0].eventRaceId.content,
-            classId = classResult.eventClass.eventClassId.content,
+            raceEventorRef = event.eventRace[0].eventRaceId.content,
+            classEventorRef = classResult.eventClass.eventClassId.content,
             name = teamResult.teamName.content,
             organisations =  organisationConverter.convertOrganisations(
                 organisations = teamResult.organisationIdOrOrganisationOrCountryId,
@@ -218,7 +218,7 @@ class ResultListConverter {
         teamMember: org.iof.eventor.TeamMemberResult
     ): TeamMember {
         return TeamMember(
-            personId = if (teamMember.person != null && teamMember.person.personId != null) teamMember.person.personId.content else null,
+            personEventorRef = if (teamMember.person != null && teamMember.person.personId != null) teamMember.person.personId.content else null,
             name = if (teamMember.person != null) personConverter.convertPersonName(teamMember.person.personName) else null,
             birthYear = if (teamMember.person != null && teamMember.person.birthDate != null) teamMember.person.birthDate.date.content.substring(
                 0,

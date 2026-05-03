@@ -17,7 +17,8 @@ import org.springframework.stereotype.Service
 import java.time.LocalDate
 import java.util.UUID
 import java.util.concurrent.CompletableFuture
-import java.util.concurrent.Executors
+import java.util.concurrent.SynchronousQueue
+import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 import jakarta.annotation.PreDestroy
 
@@ -32,8 +33,16 @@ class CalendarService(
 
     private val log = LoggerFactory.getLogger(this.javaClass)
 
-    // I/O-bound thread pool: sized at 4× available processors to saturate network calls without over-allocating
-    private val executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() * 4)
+    // SynchronousQueue + high max-pool prevents the nested-parallelism deadlock that a bounded
+    // fixed pool causes (outer person tasks hold threads while waiting for inner event-class tasks
+    // that are stuck in the same pool's queue).  The cap of 500 threads guards against runaway
+    // resource use; each thread is I/O-bound and lives at most 6 s (Eventor HTTP timeout).
+    private val executor = ThreadPoolExecutor(
+        Runtime.getRuntime().availableProcessors() * 4,
+        500,
+        60L, TimeUnit.SECONDS,
+        SynchronousQueue()
+    )
 
     // Timeout for waiting on a batch of parallel Eventor API calls (HTTP timeout is 6s, so 30s is a safe upper bound)
     private val batchTimeoutSeconds = 30L
@@ -41,8 +50,16 @@ class CalendarService(
     @PreDestroy
     fun shutdownExecutor() {
         executor.shutdown()
-        if (!executor.awaitTermination(10, TimeUnit.SECONDS)) {
+        try {
+            // Allow up to 60 seconds for graceful shutdown of ongoing tasks
+            if (!executor.awaitTermination(60, TimeUnit.SECONDS)) {
+                log.warn("Executor did not terminate within 60 seconds, forcing shutdown")
+                executor.shutdownNow()
+            }
+        } catch (_: InterruptedException) {
+            log.warn("Shutdown interrupted, forcing shutdown")
             executor.shutdownNow()
+            Thread.currentThread().interrupt()
         }
     }
 
@@ -196,12 +213,17 @@ class CalendarService(
         raceList: MutableList<CalendarRace>,
         personRaces: List<CalendarRace>
     ) {
+        // Build a map for O(1) lookup instead of O(n) find operation
+        val raceMap = raceList.associateBy { "${it.eventor}_${it.raceId}" }.toMutableMap()
+
         for (race in personRaces) {
-            val existingRace = raceList.find { it.eventor == race.eventor && it.raceId == race.raceId }
+            val key = "${race.eventor}_${race.raceId}"
+            val existingRace = raceMap[key]
             if (existingRace != null) {
                 existingRace.userEntries.addAll(race.userEntries)
                 existingRace.organisationEntries.addAll(race.organisationEntries)
             } else {
+                raceMap[key] = race
                 raceList.add(race)
             }
         }
@@ -210,18 +232,24 @@ class CalendarService(
     fun getEventList(from: LocalDate, to: LocalDate, classifications: List<EventClassificationEnum>?, userId: UUID?): List<CalendarRace> {
         val eventorList: List<Eventor> = eventorRepository.findAll()
 
-        val result: MutableList<CalendarRace> = mutableListOf()
-
-        for (eventor in eventorList) {
-            // If no userId, fetch events without personal entries
-            val persons: List<Person> = if (userId != null) {
-                personRepository.findAllByUsersAndEventorId(userId = userId, eventorId = eventor.id)
-            } else {
+        // Process all eventors in parallel for better performance
+        val futures = eventorList.map { eventor ->
+            CompletableFuture.supplyAsync({
+                val persons: List<Person> = if (userId != null) {
+                    personRepository.findAllByUsersAndEventorId(userId = userId, eventorId = eventor.id)
+                } else {
+                    emptyList()
+                }
+                getEventList(eventor = eventor, from = from, to = to, organisations = null, classifications = classifications, persons = persons)
+            }, executor).exceptionally { ex ->
+                log.warn("Failed to fetch events for eventor {}: {}", eventor.id, ex.message)
                 emptyList()
             }
-            result.addAll(getEventList(eventor = eventor, from = from, to = to, organisations = null, classifications = classifications, persons = persons))
-
         }
+
+        CompletableFuture.allOf(*futures.toTypedArray()).get(batchTimeoutSeconds, TimeUnit.SECONDS)
+
+        val result = futures.flatMap { it.join() }
         return filterRacesByDateRange(result, from, to)
     }
 
@@ -239,19 +267,15 @@ class CalendarService(
 
     private fun getEventList(eventor: Eventor, from: LocalDate, to: LocalDate, organisations: List<String>?, classifications: List<EventClassificationEnum>?, persons: List<Person>): List<CalendarRace> {
         val eventList = eventorService.getEventList(eventor, from, to, organisations, classifications)
-        val events: MutableList<String?> = mutableListOf()
-        for (event in eventList!!.event) {
-            events.add(event.eventId.content)
-        }
 
-        val personIds: MutableList<String?> = mutableListOf()
-        val organisationIds: MutableList<String?> = mutableListOf()
+        // Use map instead of loop for better performance
+        val events = eventList!!.event.map { it.eventId.content }
 
-
-        for (person in persons) {
-            personIds.add(person.eventorRef)
-            organisationIds.addAll(person.memberships.mapNotNull { it.organisation?.eventorRef })
-        }
+        // Extract person IDs and organization IDs in one pass
+        val personIds = persons.map { it.eventorRef }
+        val organisationIds = persons.flatMap { person ->
+            person.memberships.mapNotNull { it.organisation?.eventorRef }
+        }.distinct()
 
         log.info("Fetching competitor-count for persons {} and organisations {}.", personIds, organisationIds)
         val competitorCountList = eventorService.getCompetitorCounts(eventor, events, organisationIds, personIds)
@@ -268,7 +292,7 @@ class CalendarService(
         var result = calendarConverter.convertEntryList(eventor, entryList, person, this)
         result = calendarConverter.convertStartListList(eventor, startListList, person, result)
         result = calendarConverter.convertResultList(eventor, resultListList, person, result)
-        return result.values.stream().toList()
+        return result.values.toList()
     }
 
     private fun filterRacesByDateRange(races: List<CalendarRace>, from: LocalDate, to: LocalDate): List<CalendarRace> {

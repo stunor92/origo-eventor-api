@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore
 import java.util.UUID
 
 data class EventClass(
-    var id: UUID? = null,
+    var id: UUID = UUID.randomUUID(),
     var eventorRef: String = "",
     var name: String = "",
     var shortName: String = "",

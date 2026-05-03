@@ -40,9 +40,9 @@ class EntryListConverter {
         for (raceId in entry.eventRaceId) {
             result.add(
                 PersonEntry(
-                    raceId = raceId.content,
-                    classId = entry.entryClass[0].eventClassId.content,
-                    personId = if (entry.competitor.person.personId != null) entry.competitor.person.personId.content else null,
+                    raceEventorRef = raceId.content,
+                    classEventorRef = entry.entryClass[0].eventClassId.content,
+                    personEventorRef = if (entry.competitor.person.personId != null) entry.competitor.person.personId.content else null,
                     name = personConverter.convertPersonName(entry.competitor.person.personName),
                     organisation =
                         if(entry.competitor.organisation != null)
@@ -75,8 +75,8 @@ class EntryListConverter {
         for (race in entry.teamCompetitor[0].entryEntryFee) {
             result.add(
                 TeamEntry(
-                    raceId = race.eventRaceId,
-                    classId = entry.entryClass[0].eventClassId.content,
+                    raceEventorRef = race.eventRaceId,
+                    classEventorRef = entry.entryClass[0].eventClassId.content,
                     name = entry.teamName.content,
                     organisations =  convertTeamOrganisations(entry.teamCompetitor, eventor),
                     bib = if (entry.bibNumber != null) entry.bibNumber.content else null,
@@ -128,7 +128,7 @@ class EntryListConverter {
 
     private fun convertTeamMember(teamMember: org.iof.eventor.TeamCompetitor): TeamMember {
         return TeamMember(
-            personId = if (teamMember.person != null && teamMember.person.personId != null) teamMember.person.personId.content else null,
+            personEventorRef = if (teamMember.person != null && teamMember.person.personId != null) teamMember.person.personId.content else null,
             name = if (teamMember.person != null) personConverter.convertPersonName(teamMember.person.personName) else null,
             birthYear = if (teamMember.person != null && teamMember.person.birthDate != null) teamMember.person.birthDate.date.content.substring(
                 0,
