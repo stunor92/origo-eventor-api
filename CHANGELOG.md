@@ -1,5 +1,12 @@
 # Changelog
 
+## [12.0.10](https://github.com/stunor92/origo-eventor-api/compare/v12.0.9...v12.0.10) (2026-05-03)
+
+
+### Bug Fixes
+
+* entry-fees with "," must be parsed correctly ([6e10085](https://github.com/stunor92/origo-eventor-api/commit/6e100853331521aeefdeb049c5d42f91075fcbbc))
+
 ## [12.0.9](https://github.com/stunor92/origo-eventor-api/compare/v12.0.8...v12.0.9) (2026-05-03)
 
 
