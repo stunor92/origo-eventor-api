@@ -1,5 +1,12 @@
 # Changelog
 
+## [12.0.9](https://github.com/stunor92/origo-eventor-api/compare/v12.0.8...v12.0.9) (2026-05-03)
+
+
+### Bug Fixes
+
+* fix error with entry-list if person has changed class after web-entry ([239e834](https://github.com/stunor92/origo-eventor-api/commit/239e834ffd72858081064e8eeac10a7d00c3c483))
+
 ## [12.0.8](https://github.com/stunor92/origo-eventor-api/compare/v12.0.7...v12.0.8) (2026-05-01)
 
 
