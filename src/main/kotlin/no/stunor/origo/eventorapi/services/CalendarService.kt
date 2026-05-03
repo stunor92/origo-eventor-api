@@ -131,11 +131,15 @@ class CalendarService(
             null
         }
 
-        // Wait for all three in parallel, then build event class map (which also fires parallel requests)
-        CompletableFuture.allOf(entriesFuture, startsFuture, resultsFuture).get(batchTimeoutSeconds, TimeUnit.SECONDS)
-
-        val entryList = entriesFuture.join()
+        // Wait for entries first — it drives the event-class map.
+        // buildEventClassMap fires its own parallel API calls and waits for them, so starting
+        // it as soon as entries arrive lets class-map fetching overlap with the still-running
+        // starts/results futures.
+        val entryList = entriesFuture.get(batchTimeoutSeconds, TimeUnit.SECONDS)
         val eventClassMap = buildEventClassMap(entryList, eventor)
+
+        // Collect starts and results (likely already done or nearly done by now)
+        CompletableFuture.allOf(startsFuture, resultsFuture).get(batchTimeoutSeconds, TimeUnit.SECONDS)
         val startListList = startsFuture.join()
         val resultListList = resultsFuture.join()
 
