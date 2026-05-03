@@ -17,7 +17,8 @@ import org.springframework.stereotype.Service
 import java.time.LocalDate
 import java.util.UUID
 import java.util.concurrent.CompletableFuture
-import java.util.concurrent.Executors
+import java.util.concurrent.SynchronousQueue
+import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 import jakarta.annotation.PreDestroy
 
@@ -32,8 +33,16 @@ class CalendarService(
 
     private val log = LoggerFactory.getLogger(this.javaClass)
 
-    // I/O-bound thread pool: sized at 4× available processors to saturate network calls without over-allocating
-    private val executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() * 4)
+    // SynchronousQueue + high max-pool prevents the nested-parallelism deadlock that a bounded
+    // fixed pool causes (outer person tasks hold threads while waiting for inner event-class tasks
+    // that are stuck in the same pool's queue).  The cap of 500 threads guards against runaway
+    // resource use; each thread is I/O-bound and lives at most 6 s (Eventor HTTP timeout).
+    private val executor = ThreadPoolExecutor(
+        Runtime.getRuntime().availableProcessors() * 4,
+        500,
+        60L, TimeUnit.SECONDS,
+        SynchronousQueue()
+    )
 
     // Timeout for waiting on a batch of parallel Eventor API calls (HTTP timeout is 6s, so 30s is a safe upper bound)
     private val batchTimeoutSeconds = 30L
