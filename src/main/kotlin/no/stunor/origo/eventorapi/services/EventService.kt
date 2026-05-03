@@ -236,72 +236,136 @@ class EventService {
     // ========================================
 
     /**
+     * Defines the source priority for entry data.
+     * Higher ordinal = higher priority when merging data.
+     */
+    private enum class EntrySource {
+        ENTRY_LIST,      // Påmeldingslisten (lavest prioritet)
+        START_LIST,      // Startlisten
+        RESULT_LIST      // Resultatlisten (høyest prioritet)
+    }
+
+    /**
      * Merges data from incoming entry into existing entry.
      * Handles both PersonEntry and TeamEntry types.
-     * Result list data takes priority over entry/start list data.
      *
-     * Priority rules:
-     * - Start time: Always prefer result list (most accurate actual start time)
-     * - Finish time: Always prefer result list
-     * - Result: Always prefer result list
-     * - Bib: Prefer result list if available
+     * Priority rules (in order of importance):
+     * 1. Result list (what actually happened)
+     * 2. Start list (what was planned at start)
+     * 3. Entry list (original registration)
+     *
+     * Fields affected by priority:
+     * - Class (classEventorRef): Result > Start > Entry
+     * - Bib number: Result > Start > Entry
+     * - Punching units: Result > Start > Entry
+     * - Start/Finish times: Result > Start > Entry
+     * - Result data: Always from result list
      * - Status: Use most complete status (highest ordinal)
      */
-    private fun mergeEntryData(existing: Entry, incoming: Entry, isFromResultList: Boolean = false) {
-        // Merge common fields - incoming data takes priority
-        incoming.bib?.let { existing.bib = it }
-        incoming.finishTime?.let { existing.finishTime = it }
-        incoming.result?.let { existing.result = it }
+    private fun mergeEntryData(
+        existing: Entry,
+        incoming: Entry,
+        existingSource: EntrySource,
+        incomingSource: EntrySource
+    ) {
+        val incomingHasPriority = incomingSource.ordinal > existingSource.ordinal
 
-        // Start time: If from result list, always override. Otherwise, only set if missing.
-        if (isFromResultList) {
-            incoming.startTime?.let { existing.startTime = it }
-        } else {
-            if (existing.startTime == null) {
-                incoming.startTime?.let { existing.startTime = it }
-            }
+        // Merge fields based on priority
+        // Class: Incoming overwrites if it has higher priority
+        if (incomingHasPriority && incoming.classEventorRef.isNotBlank()) {
+            existing.classEventorRef = incoming.classEventorRef
+        } else if (existing.classEventorRef.isBlank() && incoming.classEventorRef.isNotBlank()) {
+            existing.classEventorRef = incoming.classEventorRef
         }
 
-        // Status: only update if incoming has more complete status
+        // Bib: Incoming overwrites if it has higher priority
+        if (incomingHasPriority) {
+            incoming.bib?.let { existing.bib = it }
+        } else if (existing.bib == null) {
+            incoming.bib?.let { existing.bib = it }
+        }
+
+        // Start time: Incoming overwrites if it has higher priority or existing is null
+        if (incomingHasPriority) {
+            incoming.startTime?.let { existing.startTime = it }
+        } else if (existing.startTime == null) {
+            incoming.startTime?.let { existing.startTime = it }
+        }
+
+        // Finish time: Incoming overwrites if it has higher priority or existing is null
+        if (incomingHasPriority) {
+            incoming.finishTime?.let { existing.finishTime = it }
+        } else if (existing.finishTime == null) {
+            incoming.finishTime?.let { existing.finishTime = it }
+        }
+
+        // Result: Always from result list (only result list has this data)
+        incoming.result?.let { existing.result = it }
+
+        // Status: Use most complete status (highest ordinal)
         if (incoming.status.ordinal > existing.status.ordinal) {
             existing.status = incoming.status
         }
 
-        // Merge type-specific fields
+        // Merge type-specific fields with priority awareness
         when {
-            existing is PersonEntry && incoming is PersonEntry -> mergePersonEntryData(existing, incoming)
-            existing is TeamEntry && incoming is TeamEntry -> mergeTeamEntryData(existing, incoming)
+            existing is PersonEntry && incoming is PersonEntry ->
+                mergePersonEntryData(existing, incoming, incomingHasPriority)
+            existing is TeamEntry && incoming is TeamEntry ->
+                mergeTeamEntryData(existing, incoming, incomingHasPriority)
         }
     }
 
     /**
      * Merges PersonEntry-specific data including punching units and split times.
+     * Punching units are replaced (not merged) if incoming has higher priority.
      */
-    private fun mergePersonEntryData(existing: PersonEntry, incoming: PersonEntry) {
-        // Merge punching units
+    private fun mergePersonEntryData(existing: PersonEntry, incoming: PersonEntry, incomingHasPriority: Boolean) {
+        // Punching units: Replace if incoming has priority, otherwise merge
         if (incoming.punchingUnits.isNotEmpty()) {
-            val existingKeys = existing.punchingUnits.map { it.id to it.type }.toSet()
-            incoming.punchingUnits
-                .filter { (it.id to it.type) !in existingKeys }
-                .forEach { existing.punchingUnits.add(it) }
+            if (incomingHasPriority) {
+                // Higher priority source: replace entirely
+                existing.punchingUnits.clear()
+                existing.punchingUnits.addAll(incoming.punchingUnits)
+            } else {
+                // Lower priority source: only add missing units
+                val existingKeys = existing.punchingUnits.map { it.id to it.type }.toSet()
+                incoming.punchingUnits
+                    .filter { (it.id to it.type) !in existingKeys }
+                    .forEach { existing.punchingUnits.add(it) }
+            }
         }
 
-        // Merge split times (result list has priority)
+        // Split times: Always prefer result list data (only result list has this)
         if (incoming.splitTimes.isNotEmpty()) {
             existing.splitTimes.clear()
             existing.splitTimes.addAll(incoming.splitTimes)
         }
 
-        // Update other fields if they're more complete in incoming
-        incoming.competitorEventorRef?.let { existing.competitorEventorRef = it }
-        incoming.nationality?.let { existing.nationality = it }
-        if (incoming.birthYear != null) existing.birthYear = incoming.birthYear
+        // Update other fields based on priority
+        if (incomingHasPriority) {
+            incoming.competitorEventorRef?.let { existing.competitorEventorRef = it }
+            incoming.nationality?.let { existing.nationality = it }
+            if (incoming.birthYear != null) existing.birthYear = incoming.birthYear
+        } else {
+            // Only fill in if missing
+            if (existing.competitorEventorRef == null) {
+                incoming.competitorEventorRef?.let { existing.competitorEventorRef = it }
+            }
+            if (existing.nationality == null) {
+                incoming.nationality?.let { existing.nationality = it }
+            }
+            if (existing.birthYear == null && incoming.birthYear != null) {
+                existing.birthYear = incoming.birthYear
+            }
+        }
     }
 
     /**
      * Merges TeamEntry-specific data including punching units for team members.
+     * Punching units are replaced per member if incoming has higher priority.
      */
-    private fun mergeTeamEntryData(existing: TeamEntry, incoming: TeamEntry) {
+    private fun mergeTeamEntryData(existing: TeamEntry, incoming: TeamEntry, incomingHasPriority: Boolean) {
         if (incoming.teamMembers.isEmpty()) return
 
         val membersByPersonId = existing.teamMembers
@@ -314,11 +378,17 @@ class EventService {
 
             if (incomingMember.punchingUnits.isEmpty()) return@forEach
 
-            val existingKeys = existingMember.punchingUnits.map { it.id to it.type }.toSet()
-
-            incomingMember.punchingUnits
-                .filter { (it.id to it.type) !in existingKeys }
-                .forEach { existingMember.punchingUnits.add(it) }
+            if (incomingHasPriority) {
+                // Higher priority source: replace entirely
+                existingMember.punchingUnits.clear()
+                existingMember.punchingUnits.addAll(incomingMember.punchingUnits)
+            } else {
+                // Lower priority source: only add missing units
+                val existingKeys = existingMember.punchingUnits.map { it.id to it.type }.toSet()
+                incomingMember.punchingUnits
+                    .filter { (it.id to it.type) !in existingKeys }
+                    .forEach { existingMember.punchingUnits.add(it) }
+            }
         }
     }
 
@@ -329,19 +399,22 @@ class EventService {
     /**
      * Merges a list of entries into the provided maps.
      * Entries with primary keys go into entriesByKey, others into keylessEntries.
+     * Also tracks the source of each entry for priority handling.
      */
     private fun mergeEntriesIntoMaps(
         entries: List<Entry>,
         entriesByKey: MutableMap<String, Entry>,
-        keylessEntries: MutableMap<String, Entry>
+        keylessEntries: MutableMap<String, Entry>,
+        entrySourceMap: MutableMap<String, EntrySource>,
+        source: EntrySource
     ) {
         entries.forEach { entry ->
             val primaryKey = generatePrimaryEntryKey(entry)
 
             if (primaryKey != null) {
-                mergeEntryByPrimaryKey(entry, primaryKey, entriesByKey)
+                mergeEntryByPrimaryKey(entry, primaryKey, entriesByKey, entrySourceMap, source)
             } else {
-                mergeEntryByCompositeKey(entry, keylessEntries)
+                mergeEntryByCompositeKey(entry, keylessEntries, entrySourceMap, source)
             }
         }
     }
@@ -349,42 +422,63 @@ class EventService {
     private fun mergeEntryByPrimaryKey(
         entry: Entry,
         key: String,
-        entriesByKey: MutableMap<String, Entry>
+        entriesByKey: MutableMap<String, Entry>,
+        entrySourceMap: MutableMap<String, EntrySource>,
+        source: EntrySource
     ) {
         val existing = entriesByKey[key]
         if (existing != null) {
-            mergeEntryData(existing, entry, isFromResultList = false)
+            val existingSource = entrySourceMap[key] ?: EntrySource.ENTRY_LIST
+            mergeEntryData(existing, entry, existingSource, source)
+            // Update source to the higher priority
+            if (source.ordinal > existingSource.ordinal) {
+                entrySourceMap[key] = source
+            }
         } else {
             entriesByKey[key] = entry
+            entrySourceMap[key] = source
         }
     }
 
     private fun mergeEntryByCompositeKey(
         entry: Entry,
-        keylessEntries: MutableMap<String, Entry>
+        keylessEntries: MutableMap<String, Entry>,
+        entrySourceMap: MutableMap<String, EntrySource>,
+        source: EntrySource
     ) {
         val compositeKey = generateCompositeEntryKey(entry) ?: return
 
         val existing = keylessEntries[compositeKey]
         if (existing != null) {
-            mergeEntryData(existing, entry, isFromResultList = false)
+            val existingSource = entrySourceMap[compositeKey] ?: EntrySource.ENTRY_LIST
+            mergeEntryData(existing, entry, existingSource, source)
+            // Update source to the higher priority
+            if (source.ordinal > existingSource.ordinal) {
+                entrySourceMap[compositeKey] = source
+            }
         } else {
             keylessEntries[compositeKey] = entry
+            entrySourceMap[compositeKey] = source
         }
     }
 
     /**
      * Combines entries from multiple sources with intelligent merging strategy.
      *
-     * Strategy:
-     * 1. Start with entry list (or start list if entry list is empty) as the base
-     * 2. Merge result list data into existing entries (result data takes priority)
-     * 3. Mark entries not found in result list as Deregistered (if result list exists)
+     * Priority strategy (in order):
+     * 1. Entry list (påmeldingslisten) - base registration, lowest priority
+     * 2. Start list (startlisten) - planned start with possible class changes, medium priority
+     * 3. Result list (resultatlisten) - actual race results with final class/bib, highest priority
      *
-     * @param entryEntries Base entries from entry list
-     * @param startEntries Fallback entries from start list (used if entry list is empty)
-     * @param resultEntries Result entries with race results and status updates
-     * @return Deduplicated and merged list of entries
+     * When a participant changes class or bib after registration:
+     * - Result list data always wins (what actually happened)
+     * - Start list overwrites entry list (planned start trumps registration)
+     * - Entry list provides base data (original registration)
+     *
+     * @param entryEntries Base entries from entry list (original registration)
+     * @param startEntries Entries from start list (planned start, may include class changes)
+     * @param resultEntries Result entries with race results (final actual data)
+     * @return Deduplicated and merged list of entries with correct priority
      */
     private fun mergeAllEntryLists(
         entryEntries: List<Entry>,
@@ -393,14 +487,21 @@ class EventService {
     ): List<Entry> {
         val entriesByKey = LinkedHashMap<String, Entry>()
         val keylessEntries = LinkedHashMap<String, Entry>()
+        val entrySourceMap = mutableMapOf<String, EntrySource>()
 
-        // Step 1: Use entry list as base, fall back to start list if entry list is empty
-        val baseEntries = if (entryEntries.isNotEmpty()) entryEntries else startEntries
-        mergeEntriesIntoMaps(baseEntries, entriesByKey, keylessEntries)
+        // Step 1: Start with entry list as base (lowest priority)
+        if (entryEntries.isNotEmpty()) {
+            mergeEntriesIntoMaps(entryEntries, entriesByKey, keylessEntries, entrySourceMap, EntrySource.ENTRY_LIST)
+        }
 
-        // Step 2: If we have result list, merge it and mark missing entries as deregistered
+        // Step 2: Merge start list (medium priority - overwrites entry list data)
+        if (startEntries.isNotEmpty()) {
+            mergeEntriesIntoMaps(startEntries, entriesByKey, keylessEntries, entrySourceMap, EntrySource.START_LIST)
+        }
+
+        // Step 3: Merge result list (highest priority - overwrites all other data)
         if (resultEntries.isNotEmpty()) {
-            mergeResultEntriesAndMarkDeregistered(resultEntries, entriesByKey, keylessEntries)
+            mergeResultEntriesAndMarkDeregistered(resultEntries, entriesByKey, keylessEntries, entrySourceMap)
         }
 
         return buildFinalEntryList(entriesByKey, keylessEntries)
@@ -412,18 +513,20 @@ class EventService {
      * @param resultEntries Entries from result list
      * @param entriesByKey Map of entries with primary keys
      * @param keylessEntries Map of entries without primary keys (composite key based)
+     * @param entrySourceMap Map tracking the source of each entry for priority handling
      */
     private fun mergeResultEntriesAndMarkDeregistered(
         resultEntries: List<Entry>,
         entriesByKey: MutableMap<String, Entry>,
-        keylessEntries: MutableMap<String, Entry>
+        keylessEntries: MutableMap<String, Entry>,
+        entrySourceMap: MutableMap<String, EntrySource>
     ) {
         val foundKeys = mutableSetOf<String>()
         val foundCompositeKeys = mutableSetOf<String>()
 
         // Merge result entries into existing entries
         resultEntries.forEach { resultEntry ->
-            mergeResultEntry(resultEntry, entriesByKey, keylessEntries, foundKeys, foundCompositeKeys)
+            mergeResultEntry(resultEntry, entriesByKey, keylessEntries, entrySourceMap, foundKeys, foundCompositeKeys)
         }
 
         // Mark entries not found in result list as Deregistered
@@ -437,6 +540,7 @@ class EventService {
         resultEntry: Entry,
         entriesByKey: MutableMap<String, Entry>,
         keylessEntries: MutableMap<String, Entry>,
+        entrySourceMap: MutableMap<String, EntrySource>,
         foundKeys: MutableSet<String>,
         foundCompositeKeys: MutableSet<String>
     ) {
@@ -444,9 +548,9 @@ class EventService {
 
         if (primaryKey != null) {
             foundKeys.add(primaryKey)
-            mergeOrAddResultEntryByPrimaryKey(resultEntry, primaryKey, entriesByKey)
+            mergeOrAddResultEntryByPrimaryKey(resultEntry, primaryKey, entriesByKey, entrySourceMap)
         } else {
-            mergeOrAddResultEntryByCompositeKey(resultEntry, keylessEntries, foundCompositeKeys)
+            mergeOrAddResultEntryByCompositeKey(resultEntry, keylessEntries, entrySourceMap, foundCompositeKeys)
         }
     }
 
@@ -456,13 +560,17 @@ class EventService {
     private fun mergeOrAddResultEntryByPrimaryKey(
         resultEntry: Entry,
         primaryKey: String,
-        entriesByKey: MutableMap<String, Entry>
+        entriesByKey: MutableMap<String, Entry>,
+        entrySourceMap: MutableMap<String, EntrySource>
     ) {
         val existing = entriesByKey[primaryKey]
         if (existing != null) {
-            mergeEntryData(existing, resultEntry, isFromResultList = true)
+            val existingSource = entrySourceMap[primaryKey] ?: EntrySource.ENTRY_LIST
+            mergeEntryData(existing, resultEntry, existingSource, EntrySource.RESULT_LIST)
+            entrySourceMap[primaryKey] = EntrySource.RESULT_LIST
         } else {
             entriesByKey[primaryKey] = resultEntry
+            entrySourceMap[primaryKey] = EntrySource.RESULT_LIST
         }
     }
 
@@ -472,6 +580,7 @@ class EventService {
     private fun mergeOrAddResultEntryByCompositeKey(
         resultEntry: Entry,
         keylessEntries: MutableMap<String, Entry>,
+        entrySourceMap: MutableMap<String, EntrySource>,
         foundCompositeKeys: MutableSet<String>
     ) {
         val compositeKey = generateCompositeEntryKey(resultEntry) ?: return
@@ -479,9 +588,12 @@ class EventService {
         foundCompositeKeys.add(compositeKey)
         val existing = keylessEntries[compositeKey]
         if (existing != null) {
-            mergeEntryData(existing, resultEntry, isFromResultList = true)
+            val existingSource = entrySourceMap[compositeKey] ?: EntrySource.ENTRY_LIST
+            mergeEntryData(existing, resultEntry, existingSource, EntrySource.RESULT_LIST)
+            entrySourceMap[compositeKey] = EntrySource.RESULT_LIST
         } else {
             keylessEntries[compositeKey] = resultEntry
+            entrySourceMap[compositeKey] = EntrySource.RESULT_LIST
         }
     }
 
@@ -527,23 +639,32 @@ class EventService {
     /**
      * Retrieves and merges entry lists from Eventor API.
      *
-     * Fetching strategy:
+     * Fetching and merging strategy:
      * 1. Fetch entry list and result list in parallel for performance
-     * 2. Fetch start list only if entry list is empty (fallback)
-     * 3. Merge all lists with result data taking priority
-     * 4. Mark entries not in result list as Deregistered
+     * 2. Fetch start list in parallel as well (always, not just as fallback)
+     * 3. Merge in priority order: Entry (base) → Start (medium) → Result (highest)
+     * 4. When participant changes class/bib: Result > Start > Entry
+     * 5. Mark entries not in result list as Deregistered
      *
-     * Performance: Parallel API calls reduce total time from ~18s to ~6s (3 sequential calls)
+     * Performance: Parallel API calls reduce total time significantly
+     * Data accuracy: All three lists ensure we catch class changes and deregistrations
      */
     fun getEntryList(eventorId: String, eventId: String): List<Entry> {
         val eventor = eventorRepository.findById(eventorId)
             ?: throw EventorNotFoundException()
 
-        // Fetch entry list and result list in parallel for better performance
+        // Fetch all three lists in parallel for best performance
         val entryFuture = CompletableFuture.supplyAsync({
             fetchEntryEntries(eventor, eventId)
         }, executor).exceptionally { ex ->
             log.warn("Failed to fetch entry entries for event {}: {}", eventId, ex.message)
+            emptyList()
+        }
+
+        val startFuture = CompletableFuture.supplyAsync({
+            fetchStartEntries(eventor, eventId)
+        }, executor).exceptionally { ex ->
+            log.warn("Failed to fetch start entries for event {}: {}", eventId, ex.message)
             emptyList()
         }
 
@@ -554,21 +675,15 @@ class EventService {
             emptyList()
         }
 
-        // Wait for both to complete
-        CompletableFuture.allOf(entryFuture, resultFuture).get(apiTimeoutSeconds, TimeUnit.SECONDS)
+        // Wait for all three to complete
+        CompletableFuture.allOf(entryFuture, startFuture, resultFuture).get(apiTimeoutSeconds, TimeUnit.SECONDS)
 
         val entryEntries = entryFuture.join()
+        val startEntries = startFuture.join()
         val resultEntries = resultFuture.join()
 
-        // Fetch start list only if entry list is empty (fallback)
-        val startEntries = if (entryEntries.isEmpty()) {
-            fetchStartEntries(eventor, eventId)
-        } else {
-            emptyList()
-        }
-
-        // If we have results, merge everything together
-        if (resultEntries.isNotEmpty() || entryEntries.isNotEmpty() || startEntries.isNotEmpty()) {
+        // If we have any data at all, merge with proper priority
+        if (entryEntries.isNotEmpty() || startEntries.isNotEmpty() || resultEntries.isNotEmpty()) {
             return mergeAllEntryLists(entryEntries, startEntries, resultEntries)
         }
 
