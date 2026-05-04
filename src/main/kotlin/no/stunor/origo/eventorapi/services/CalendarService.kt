@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service
 import java.time.LocalDate
 import java.util.*
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.SynchronousQueue
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 
@@ -31,20 +32,14 @@ class CalendarService(
     var eventorService: EventorService
 ) {
     private val log = LoggerFactory.getLogger(this.javaClass)
-    // - Core threads: 4x available processors (balanced approach)
-    // - Max threads: 200 (reduced from 500 for better resource management)
-    // - Queue: Bounded queue with 100 capacity (prevents unlimited queueing)
-    // - Rejection policy: Abort (throws exception when queue is full)
+    // SynchronousQueue + high max-pool prevents nested-parallelism starvation where
+    // outer tasks block while waiting for inner tasks queued on the same executor.
     private val executor = ThreadPoolExecutor(
         Runtime.getRuntime().availableProcessors() * 4,
-        200,
+        500,
         60L, TimeUnit.SECONDS,
-        java.util.concurrent.LinkedBlockingQueue(100),
-        ThreadPoolExecutor.AbortPolicy()
-    ).apply {
-        // Allow core threads to time out when idle to free resources
-        allowCoreThreadTimeOut(true)
-    }
+        SynchronousQueue()
+    )
 
     // Timeout for waiting on a batch of parallel Eventor API calls (HTTP timeout is 6s, so 30s is a safe upper bound)
     private val batchTimeoutSeconds = 30L
@@ -111,6 +106,11 @@ class CalendarService(
 
         val raceList = mutableListOf<CalendarRace>()
         futures.forEach { future ->
+            if (!future.isDone) {
+                // Do not block after timeout; return partial data immediately.
+                timedOut = true
+                return@forEach
+            }
             try {
                 val result = future.join()
                 mergeRaces(raceList, result.data)
@@ -187,14 +187,20 @@ class CalendarService(
             log.warn("Timeout fetching personal starts/results for person {} on eventor {}", person.eventorRef, person.eventorId)
         }
         val startListList = try {
-            startsFuture.join()
+            if (startsFuture.isDone) startsFuture.join() else {
+                timedOut = true
+                null
+            }
         } catch (ex: Exception) {
             log.warn("Failed to retrieve starts for person {}: {}", person.eventorRef, ex.message)
             timedOut = true
             null
         }
         val resultListList = try {
-            resultsFuture.join()
+            if (resultsFuture.isDone) resultsFuture.join() else {
+                timedOut = true
+                null
+            }
         } catch (ex: Exception) {
             log.warn("Failed to retrieve results for person {}: {}", person.eventorRef, ex.message)
             timedOut = true
@@ -245,6 +251,7 @@ class CalendarService(
 
         val classesByEventId: Map<String, org.iof.eventor.EventClassList> = classFutures
             .mapNotNull { (eventId, future) ->
+                if (!future.isDone) return@mapNotNull null
                 try {
                     future.join()?.let { eventId to it }
                 } catch (ex: Exception) {
@@ -309,6 +316,10 @@ class CalendarService(
         }
 
         val result = futures.flatMap {
+            if (!it.isDone) {
+                timedOut = true
+                return@flatMap emptyList()
+            }
             try {
                 val partialResult = it.join()
                 if (partialResult.isPartial) timedOut = true
