@@ -31,7 +31,7 @@ class EventorService {
     private val dateFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd")
 
     companion object {
-        private const val TIMEOUT = 6000
+        private const val TIMEOUT = 20000
     }
 
     init {

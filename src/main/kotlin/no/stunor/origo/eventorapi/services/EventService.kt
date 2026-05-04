@@ -19,11 +19,11 @@ import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import jakarta.annotation.PreDestroy
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.SynchronousQueue
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
-import jakarta.annotation.PreDestroy
 
 @Service
 class EventService {
@@ -33,7 +33,7 @@ class EventService {
     // SynchronousQueue + high max-pool prevents the nested-parallelism deadlock that a bounded
     // fixed pool causes (outer tasks hold threads while waiting for inner entry/start/result tasks
     // that are stuck in the same pool's queue).  The cap of 500 threads guards against runaway
-    // resource use; each thread is I/O-bound and lives at most 6 s (Eventor HTTP timeout).
+    // resource use; each thread is I/O-bound and lives at most 20 s (Eventor HTTP timeout).
     private val executor = ThreadPoolExecutor(
         Runtime.getRuntime().availableProcessors() * 4,
         500,
