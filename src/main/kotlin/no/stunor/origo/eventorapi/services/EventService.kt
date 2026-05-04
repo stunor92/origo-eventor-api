@@ -21,7 +21,8 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import jakarta.annotation.PreDestroy
 import java.util.concurrent.CompletableFuture
-import java.util.concurrent.Executors
+import java.util.concurrent.SynchronousQueue
+import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 
 @Service
@@ -29,17 +30,30 @@ class EventService {
 
     private val log = LoggerFactory.getLogger(this.javaClass)
 
-    // I/O-bound thread pool for parallel Eventor API calls
-    private val executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() * 4)
-
-    // HTTP timeout is 6s; 30s is a safe upper bound for a pair of parallel calls
-    private val batchTimeoutSeconds = 30L
+    // SynchronousQueue + high max-pool prevents the nested-parallelism deadlock that a bounded
+    // fixed pool causes (outer tasks hold threads while waiting for inner entry/start/result tasks
+    // that are stuck in the same pool's queue).  The cap of 500 threads guards against runaway
+    // resource use; each thread is I/O-bound and lives at most 20 s (Eventor HTTP timeout).
+    private val executor = ThreadPoolExecutor(
+        Runtime.getRuntime().availableProcessors() * 4,
+        500,
+        60L, TimeUnit.SECONDS,
+        SynchronousQueue()
+    )
+    private val apiTimeoutSeconds = 30L
 
     @PreDestroy
     fun shutdownExecutor() {
         executor.shutdown()
-        if (!executor.awaitTermination(10, TimeUnit.SECONDS)) {
+        try {
+            if (!executor.awaitTermination(60, TimeUnit.SECONDS)) {
+                log.warn("Executor did not terminate within 60 seconds, forcing shutdown")
+                executor.shutdownNow()
+            }
+        } catch (_: InterruptedException) {
+            log.warn("Shutdown interrupted, forcing shutdown")
             executor.shutdownNow()
+            Thread.currentThread().interrupt()
         }
     }
 
@@ -648,29 +662,37 @@ class EventService {
         val eventor = eventorRepository.findById(eventorId)
             ?: throw EventorNotFoundException()
 
-        // Fetch entry list and result list in parallel — they are independent of each other
-        val entryFuture = CompletableFuture
-            .supplyAsync({ fetchEntryEntries(eventor, eventId) }, executor)
-            .exceptionally { ex ->
-                log.warn("Failed to fetch entry list for event {} on eventor {}: {}", eventId, eventorId, ex.message)
-                emptyList()
-            }
-        val resultFuture = CompletableFuture
-            .supplyAsync({ fetchResultEntries(eventor, eventId) }, executor)
-            .exceptionally { ex ->
-                log.warn("Failed to fetch result list for event {} on eventor {}: {}", eventId, eventorId, ex.message)
-                emptyList()
-            }
+        // Fetch all three lists in parallel for best performance
+        val entryFuture = CompletableFuture.supplyAsync({
+            fetchEntryEntries(eventor, eventId)
+        }, executor).exceptionally { ex ->
+            log.warn("Failed to fetch entry entries for event {}: {}", eventId, ex.message)
+            emptyList()
+        }
 
-        CompletableFuture.allOf(entryFuture, resultFuture).get(batchTimeoutSeconds, TimeUnit.SECONDS)
+        val startFuture = CompletableFuture.supplyAsync({
+            fetchStartEntries(eventor, eventId)
+        }, executor).exceptionally { ex ->
+            log.warn("Failed to fetch start entries for event {}: {}", eventId, ex.message)
+            emptyList()
+        }
+
+        val resultFuture = CompletableFuture.supplyAsync({
+            fetchResultEntries(eventor, eventId)
+        }, executor).exceptionally { ex ->
+            log.warn("Failed to fetch result entries for event {}: {}", eventId, ex.message)
+            emptyList()
+        }
+
+        // Wait for all three to complete
+        CompletableFuture.allOf(entryFuture, startFuture, resultFuture).get(apiTimeoutSeconds, TimeUnit.SECONDS)
 
         val entryEntries = entryFuture.join()
+        val startEntries = startFuture.join()
         val resultEntries = resultFuture.join()
 
-        // Start list is a fallback fetched only when the entry list is empty
-        val startEntries = if (entryEntries.isEmpty()) fetchStartEntries(eventor, eventId) else emptyList()
-
-        if (resultEntries.isNotEmpty() || entryEntries.isNotEmpty() || startEntries.isNotEmpty()) {
+        // If we have any data at all, merge with proper priority
+        if (entryEntries.isNotEmpty() || startEntries.isNotEmpty() || resultEntries.isNotEmpty()) {
             return mergeAllEntryLists(entryEntries, startEntries, resultEntries)
         }
 
