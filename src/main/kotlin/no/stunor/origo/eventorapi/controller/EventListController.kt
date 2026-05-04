@@ -50,17 +50,18 @@ internal class EventListController {
         // Validate input to prevent SSRF attacks
         val validatedEventorId = inputValidator.validateEventorId(eventorId)
         val validatedOrganisations = inputValidator.validateOrganisationIds(organisations)
-        return ResponseEntity(
-                calendarService.getEventList(
-                        eventorId = validatedEventorId,
-                        from = from,
-                        to = to,
-                        organisations = validatedOrganisations,
-                        classifications = classifications,
-                        userId = uid
-                ),
-                HttpStatus.OK
+
+        val result = calendarService.getEventList(
+                eventorId = validatedEventorId,
+                from = from,
+                to = to,
+                organisations = validatedOrganisations,
+                classifications = classifications,
+                userId = uid
         )
+
+        val httpStatus = if (result.isPartial) HttpStatus.PARTIAL_CONTENT else HttpStatus.OK
+        return ResponseEntity(result.data, httpStatus)
     }
 
     @GetMapping
@@ -75,15 +76,16 @@ internal class EventListController {
     ): ResponseEntity<List<CalendarRace>> {
         log.info("Start to get event-list from all eventors.")
         val uid = SecurityUtils.getCurrentUserId()?.let { UUID.fromString(it) }
-        return ResponseEntity(
-            calendarService.getEventList(
-                from = from,
-                to = to,
-                classifications = classifications,
-                userId = uid
-            ),
-            HttpStatus.OK
+
+        val result = calendarService.getEventList(
+            from = from,
+            to = to,
+            classifications = classifications,
+            userId = uid
         )
+
+        val httpStatus = if (result.isPartial) HttpStatus.PARTIAL_CONTENT else HttpStatus.OK
+        return ResponseEntity(result.data, httpStatus)
     }
 
     @GetMapping("/me")
@@ -98,11 +100,8 @@ internal class EventListController {
 
         val uid = UUID.fromString(uidString)
 
-        return ResponseEntity(
-            calendarService.getEventList(
-                userId = uid
-            ),
-            HttpStatus.OK
-        )
+        val result = calendarService.getEventList(userId = uid)
+        val httpStatus = if (result.isPartial) HttpStatus.PARTIAL_CONTENT else HttpStatus.OK
+        return ResponseEntity(result.data, httpStatus)
     }
 }

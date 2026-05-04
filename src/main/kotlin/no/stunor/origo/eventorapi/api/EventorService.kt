@@ -19,6 +19,7 @@ import org.springframework.http.HttpMethod
 import org.springframework.http.client.SimpleClientHttpRequestFactory
 import org.springframework.http.converter.HttpMessageConverter
 import org.springframework.http.converter.xml.Jaxb2RootElementHttpMessageConverter
+import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Service
 import org.springframework.web.client.RestTemplate
 import org.springframework.web.client.exchange
@@ -59,6 +60,7 @@ class EventorService {
         return response.body
     }
 
+    @Cacheable("event-lists")
     fun getEventList(
         eventor: Eventor,
         fromDate: LocalDate?,
@@ -101,6 +103,7 @@ class EventorService {
         return response.body
     }
 
+    @Cacheable("competitor-counts")
     fun getCompetitorCounts(
         eventor: Eventor,
         events: List<String?>?,
@@ -170,6 +173,7 @@ class EventorService {
         return response.body
     }
 
+    @Cacheable("organisation-entries")
     fun getGetOrganisationEntries(
         eventor: Eventor,
         organisations: List<String>,
@@ -208,6 +212,7 @@ class EventorService {
         return response.body
     }
 
+    @Cacheable("event-classes")
     fun getEventClasses(eventor: Eventor, eventId: String): EventClassList? {
         val headers = HttpHeaders()
         headers["ApiKey"] = eventor.eventorApiKey

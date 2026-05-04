@@ -50,8 +50,8 @@ class CalendarServiceTest {
         every { organisationRepository.findByEventorRefAndEventorId(any(),any()) } returns OrganisationFactory.createTestOrganisation()
         val result = calendarService.getEventList(UUID.randomUUID())
 
-        assert(result.size == 27)
-        val dm = result.first { it.eventId == "17544" }
+        assert(result.data.size == 27)
+        val dm = result.data.first { it.eventId == "17544" }
         assert(dm.userEntries.size == 1)
         assert(dm.organisationEntries.first { it.organisation.eventorRef == "141" }.entries == 95)
     }
