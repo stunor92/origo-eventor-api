@@ -14,7 +14,6 @@ import no.stunor.origo.eventorapi.model.event.EventClassificationEnum
 import no.stunor.origo.eventorapi.model.person.Person
 import no.stunor.origo.eventorapi.services.converter.CalendarConverter
 import org.slf4j.LoggerFactory
-import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import java.time.LocalDate
 import java.util.*
@@ -22,6 +21,9 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.SynchronousQueue
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
+
+private typealias CalendarRaceResult = PartialResult<List<CalendarRace>>
+private typealias CalendarRaceResultFuture = CompletableFuture<CalendarRaceResult>
 
 @Service
 class CalendarService(
@@ -32,7 +34,6 @@ class CalendarService(
     var eventorService: EventorService
 ) {
     private val log = LoggerFactory.getLogger(this.javaClass)
-    private val slowTimingWarnMillis = 5000L
     // SynchronousQueue + high max-pool prevents nested-parallelism starvation where
     // outer tasks block while waiting for inner tasks queued on the same executor.
     private val executor = ThreadPoolExecutor(
@@ -44,9 +45,6 @@ class CalendarService(
 
     // Timeout for waiting on a batch of parallel Eventor API calls (HTTP timeout is 6s, so 30s is a safe upper bound)
     private val batchTimeoutSeconds = 30L
-
-    private fun elapsedMs(startNanos: Long): Long =
-        TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos)
 
     @PreDestroy
     fun shutdownExecutor() {
@@ -69,340 +67,91 @@ class CalendarService(
         regionRepository = regionRepository
     )
 
-    @Value($$"${config.personalEntries.start}")
-    private val personalEntriesStart = 0L
 
-    @Value($$"${config.personalEntries.end}")
-    private val personalEntriesEnd = 0L
 
-    @Value($$"${config.personalStarts.start}")
-    private val personalStartsStart = 0L
-
-    @Value($$"${config.personalStarts.end}")
-    private val personalStartsEnd = 0L
-
-    @Value($$"${config.personalResults.start}")
-    private val personalResultsStart = 0L
-
-    @Value($$"${config.personalResults.end}")
-    private val personalResultsEnd = 0L
-
-    fun getEventList(userId: UUID): PartialResult<List<CalendarRace>> {
-        val totalStartNanos = System.nanoTime()
-        val persons = personRepository.findAllByUsers(userId)
-        var timedOut = false
-
-        val futures = persons.mapNotNull { person ->
-            val eventor = eventorRepository.findById(person.eventorId) ?: return@mapNotNull null
-            CompletableFuture
-                .supplyAsync({ processPersonEntries(person, eventor) }, executor)
-                .exceptionally { ex ->
-                    log.warn("Failed to fetch calendar entries for person {} on eventor {}: {}", person.eventorRef, person.eventorId, ex.message)
-                    PartialResult(emptyList(), isPartial = false)
-                }
-        }
-
-        try {
-            CompletableFuture.allOf(*futures.toTypedArray()).get(batchTimeoutSeconds, TimeUnit.SECONDS)
-        } catch (_: java.util.concurrent.TimeoutException) {
-            timedOut = true
-            log.warn("Timeout while fetching personal entries for user {} after {} seconds. Returning partial results.", userId, batchTimeoutSeconds)
-        }
-
-        val raceList = mutableListOf<CalendarRace>()
-        futures.forEach { future ->
-            if (!future.isDone) {
-                // Do not block after timeout; return partial data immediately.
-                timedOut = true
-                return@forEach
-            }
-            try {
-                val result = future.join()
-                mergeRaces(raceList, result.data)
-                if (result.isPartial) timedOut = true
-            } catch (ex: Exception) {
-                log.warn("Failed to process future result: {}", ex.message)
-                timedOut = true
-            }
-        }
-        val totalMs = elapsedMs(totalStartNanos)
-        log.info(
-            "Timing /event-list/me user={} persons={} races={} partial={} durationMs={}",
-            userId,
-            persons.size,
-            raceList.size,
-            timedOut,
-            totalMs
-        )
-        return PartialResult(raceList, isPartial = timedOut)
-    }
-
-     private fun processPersonEntries(person: Person, eventor: Eventor): PartialResult<List<CalendarRace>> {
-        val totalStartNanos = System.nanoTime()
-        var timedOut = false
-        val organisationIds = person.memberships.mapNotNull { it.organisation?.eventorRef }
-
-        val entriesFuture = CompletableFuture.supplyAsync({
-            eventorService.getGetOrganisationEntries(
-                eventor = eventor,
-                organisations = organisationIds,
-                eventId = null,
-                fromDate = LocalDate.now().minusDays(personalEntriesStart),
-                toDate = LocalDate.now().plusDays(personalEntriesEnd)
-            )
-        }, executor).exceptionally { ex ->
-            log.warn("Failed to fetch organisation entries for person {} on eventor {}: {}", person.eventorRef, person.eventorId, ex.message)
-            org.iof.eventor.EntryList()
-        }
-
-        val startsFuture = CompletableFuture.supplyAsync({
-            eventorService.getGetPersonalStarts(
-                eventor = eventor,
-                personId = person.eventorRef,
-                eventId = null,
-                fromDate = LocalDate.now().minusDays(personalStartsStart),
-                toDate = LocalDate.now().plusDays(personalStartsEnd)
-            )
-        }, executor).exceptionally { ex ->
-            log.warn("Failed to fetch personal starts for person {} on eventor {}: {}", person.eventorRef, person.eventorId, ex.message)
-            null
-        }
-
-        val resultsFuture = CompletableFuture.supplyAsync({
-            eventorService.getGetPersonalResults(
-                eventor = eventor,
-                personId = person.eventorRef,
-                eventId = null,
-                fromDate = LocalDate.now().minusDays(personalResultsStart),
-                toDate = LocalDate.now().plusDays(personalResultsEnd)
-            )
-        }, executor).exceptionally { ex ->
-            log.warn("Failed to fetch personal results for person {} on eventor {}: {}", person.eventorRef, person.eventorId, ex.message)
-            null
-        }
-
-        // Wait for entries first — it drives the event-class map.
-        // buildEventClassMap fires its own parallel API calls and waits for them, so starting
-        // it as soon as entries arrive lets class-map fetching overlap with the still-running
-        // starts/results futures.
-        val entriesFetchStartNanos = System.nanoTime()
-         val entryList = try {
-            entriesFuture.get(batchTimeoutSeconds, TimeUnit.SECONDS)
-        } catch (_: java.util.concurrent.TimeoutException) {
-            timedOut = true
-            log.warn("Timeout fetching organisation entries for person {} on eventor {}", person.eventorRef, person.eventorId)
-            org.iof.eventor.EntryList()
-        }
-        val entriesFetchMs = elapsedMs(entriesFetchStartNanos)
-
-        val classMapStartNanos = System.nanoTime()
-        val eventClassMap = buildEventClassMap(entryList, eventor)
-        val classMapMs = elapsedMs(classMapStartNanos)
-
-        // Collect starts and results (likely already done or nearly done by now)
-        val startsResultsWaitStartNanos = System.nanoTime()
-        try {
-            CompletableFuture.allOf(startsFuture, resultsFuture).get(batchTimeoutSeconds, TimeUnit.SECONDS)
-        } catch (_: java.util.concurrent.TimeoutException) {
-            timedOut = true
-            log.warn("Timeout fetching personal starts/results for person {} on eventor {}", person.eventorRef, person.eventorId)
-        }
-        val startsResultsWaitMs = elapsedMs(startsResultsWaitStartNanos)
-        val startListList = try {
-            if (startsFuture.isDone) startsFuture.join() else {
-                timedOut = true
-                null
-            }
-        } catch (ex: Exception) {
-            log.warn("Failed to retrieve starts for person {}: {}", person.eventorRef, ex.message)
-            timedOut = true
-            null
-        }
-        val resultListList = try {
-            if (resultsFuture.isDone) resultsFuture.join() else {
-                timedOut = true
-                null
-            }
-        } catch (ex: Exception) {
-            log.warn("Failed to retrieve results for person {}: {}", person.eventorRef, ex.message)
-            timedOut = true
-            null
-        }
-
-        val conversionStartNanos = System.nanoTime()
-        val races = eventClassMap.generateCalendarRaceForPerson(
-            eventor,
-            person,
-            entryList,
-            startListList,
-            resultListList
-        )
-
-        val conversionMs = elapsedMs(conversionStartNanos)
-        val totalMs = elapsedMs(totalStartNanos)
-        if (totalMs >= slowTimingWarnMillis) {
-            log.warn(
-                "Slow calendar person processing person={} eventor={} totalMs={} entriesMs={} classMapMs={} startsResultsWaitMs={} conversionMs={} races={} partial={}",
-                person.eventorRef,
-                eventor.id,
-                totalMs,
-                entriesFetchMs,
-                classMapMs,
-                startsResultsWaitMs,
-                conversionMs,
-                races.size,
-                timedOut
-            )
-        } else {
-            log.debug(
-                "Timing calendar person processing person={} eventor={} totalMs={} entriesMs={} classMapMs={} startsResultsWaitMs={} conversionMs={} races={} partial={}",
-                person.eventorRef,
-                eventor.id,
-                totalMs,
-                entriesFetchMs,
-                classMapMs,
-                startsResultsWaitMs,
-                conversionMs,
-                races.size,
-                timedOut
-            )
-        }
-        return PartialResult(races, isPartial = timedOut)
-    }
-
-    private fun buildEventClassMap(
-        entryList: org.iof.eventor.EntryList,
-        eventor: Eventor
-    ): MutableMap<String, org.iof.eventor.EventClassList> {
-        val totalStartNanos = System.nanoTime()
-        // Map raceId -> eventId, deduplicating by eventId to avoid redundant API calls
-        val raceToEventId = mutableMapOf<String, String>()
-        for (entry in entryList.entry) {
-            val eventId = entry.event.eventId.content
-            for (raceId in entry.eventRaceId) {
-                raceToEventId[raceId.content] = eventId
-            }
-        }
-
-        if (raceToEventId.isEmpty()) return mutableMapOf()
-
-        // Fetch all unique event class lists in parallel, skipping any that fail
-        val uniqueEventIds = raceToEventId.values.distinct()
-        val classFutures: List<Pair<String, CompletableFuture<org.iof.eventor.EventClassList?>>> = uniqueEventIds.map { eventId ->
-            eventId to CompletableFuture
-                .supplyAsync({ eventorService.getEventClasses(eventor, eventId) }, executor)
-                .exceptionally { ex ->
-                    log.warn("Failed to fetch event classes for event {} on eventor {}: {}", eventId, eventor.id, ex.message)
-                    null
-                }
-        }
-
-        try {
-            CompletableFuture.allOf(*classFutures.map { it.second }.toTypedArray()).get(batchTimeoutSeconds, TimeUnit.SECONDS)
-        } catch (_: java.util.concurrent.TimeoutException) {
-            log.warn("Timeout fetching event classes for eventor {} after {} seconds. Returning partial event class results.", eventor.id, batchTimeoutSeconds)
-        }
-
-        val classesByEventId: Map<String, org.iof.eventor.EventClassList> = classFutures
-            .mapNotNull { (eventId, future) ->
-                if (!future.isDone) return@mapNotNull null
-                try {
-                    future.join()?.let { eventId to it }
-                } catch (ex: Exception) {
-                    log.warn("Failed to retrieve event classes for event {}: {}", eventId, ex.message)
-                    null
-                }
-            }
-            .toMap()
-
-        log.debug(
-            "Timing event class map eventor={} uniqueEvents={} resolvedClasses={} durationMs={}",
-            eventor.id,
-            uniqueEventIds.size,
-            classesByEventId.size,
-            elapsedMs(totalStartNanos)
-        )
-
-        // Map raceId -> EventClassList
-        val eventClassMap = mutableMapOf<String, org.iof.eventor.EventClassList>()
-        for ((raceId, eventId) in raceToEventId) {
-            classesByEventId[eventId]?.let { eventClassMap[raceId] = it }
-        }
-        return eventClassMap
-    }
-
-    private fun mergeRaces(
-        raceList: MutableList<CalendarRace>,
-        personRaces: List<CalendarRace>
-    ) {
-        // Build a map for O(1) lookup instead of O(n) find operation
-        val raceMap = raceList.associateBy { "${it.eventor}_${it.raceId}" }.toMutableMap()
-
-        for (race in personRaces) {
-            val key = "${race.eventor}_${race.raceId}"
-            val existingRace = raceMap[key]
-            if (existingRace != null) {
-                existingRace.userEntries.addAll(race.userEntries)
-                existingRace.organisationEntries.addAll(race.organisationEntries)
-            } else {
-                raceMap[key] = race
-                raceList.add(race)
-            }
-        }
-    }
 
     fun getEventList(from: LocalDate, to: LocalDate, classifications: List<EventClassificationEnum>?, userId: UUID?): PartialResult<List<CalendarRace>> {
-        val eventorList: List<Eventor> = eventorRepository.findAll()
-        var timedOut = false
-
-        // Process all eventors in parallel for better performance
-        val futures = eventorList.map { eventor ->
-            CompletableFuture.supplyAsync({
-                val persons: List<Person> = if (userId != null) {
-                    personRepository.findAllByUsersAndEventorId(userId = userId, eventorId = eventor.id)
-                } else {
-                    emptyList()
-                }
-                getEventListInternal(eventor = eventor, from = from, to = to, organisations = null, classifications = classifications, persons = persons)
-            }, executor).exceptionally { ex ->
-                log.warn("Failed to fetch events for eventor {}: {}", eventor.id, ex.message)
-                PartialResult(emptyList(), isPartial = false)
-            }
+        val eventorList = eventorRepository.findAll()
+        val futures: List<CalendarRaceResultFuture> = eventorList.map { eventor ->
+            createEventorFetchFuture(eventor, from, to, classifications, userId)
         }
+        val waitTimedOut = awaitBatchOrTimeout(futures)
+        val completedResults = collectCompletedResults(futures)
 
-        try {
+        val result = completedResults.flatMap { it.data }
+        val isPartial = computeIsPartial(waitTimedOut, futures, completedResults)
+        return PartialResult(filterRacesByDateRange(result, from, to), isPartial)
+    }
+
+    private fun createEventorFetchFuture(
+        eventor: Eventor,
+        from: LocalDate,
+        to: LocalDate,
+        classifications: List<EventClassificationEnum>?,
+        userId: UUID?
+    ): CalendarRaceResultFuture {
+        return CompletableFuture.supplyAsync({
+            val persons = resolvePersonsForEventor(eventor.id, userId)
+            getEventListInternal(
+                eventor = eventor,
+                from = from,
+                to = to,
+                organisations = null,
+                classifications = classifications,
+                persons = persons
+            )
+        }, executor).exceptionally { ex ->
+            log.warn("Failed to fetch events for eventor {}: {}", eventor.id, ex.message)
+            PartialResult(emptyList(), isPartial = false)
+        }
+    }
+
+    private fun awaitBatchOrTimeout(futures: List<CalendarRaceResultFuture>): Boolean {
+        return try {
             CompletableFuture.allOf(*futures.toTypedArray()).get(batchTimeoutSeconds, TimeUnit.SECONDS)
+            false
         } catch (_: java.util.concurrent.TimeoutException) {
-            timedOut = true
             log.warn("Timeout fetching events from all eventors after {} seconds. Returning partial results.", batchTimeoutSeconds)
+            true
         }
+    }
 
-        val result = futures.flatMap {
-            if (!it.isDone) {
-                timedOut = true
-                return@flatMap emptyList()
+    private fun collectCompletedResults(
+        futures: List<CalendarRaceResultFuture>
+    ): List<CalendarRaceResult> {
+        return futures.mapNotNull { future ->
+            if (!future.isDone) {
+                return@mapNotNull null
             }
+
             try {
-                val partialResult = it.join()
-                if (partialResult.isPartial) timedOut = true
-                partialResult.data
+                future.join()
             } catch (ex: Exception) {
                 log.warn("Failed to retrieve events from eventors: {}", ex.message)
-                timedOut = true
-                emptyList()
+                PartialResult(emptyList(), isPartial = true)
             }
         }
-        return PartialResult(filterRacesByDateRange(result, from, to), isPartial = timedOut)
+    }
+
+    private fun computeIsPartial(
+        waitTimedOut: Boolean,
+        futures: List<CalendarRaceResultFuture>,
+        completedResults: List<CalendarRaceResult>
+    ): Boolean {
+        return waitTimedOut || futures.any { !it.isDone } || completedResults.any { it.isPartial }
+    }
+
+    private fun resolvePersonsForEventor(eventorId: String, userId: UUID?): List<Person> {
+        return if (userId != null) {
+            personRepository.findAllByUsersAndEventorId(userId = userId, eventorId = eventorId)
+        } else {
+            emptyList()
+        }
     }
 
     fun getEventList(eventorId: String, from: LocalDate, to: LocalDate, organisations: List<String>?, classifications: List<EventClassificationEnum>?, userId: UUID?): PartialResult<List<CalendarRace>> {
         val eventor = eventorRepository.findById(eventorId) ?: throw EventorNotFoundException()
-        // If no userId, fetch events without personal entries
-        val persons: List<Person> = if (userId != null) {
-            personRepository.findAllByUsersAndEventorId(userId = userId, eventorId = eventor.id)
-        } else {
-            emptyList()
-        }
+        val persons = resolvePersonsForEventor(eventor.id, userId)
         val races = getEventListInternal(eventor = eventor, from = from, to = to, organisations = organisations, classifications = classifications, persons = persons)
         return PartialResult(filterRacesByDateRange(races.data, from, to), isPartial = races.isPartial)
     }
@@ -423,19 +172,6 @@ class CalendarService(
         val competitorCountList = eventorService.getCompetitorCounts(eventor, events, organisationIds, personIds)
         val races = calendarConverter.convertEvents(eventList, eventor, competitorCountList)
         return PartialResult(races, isPartial = false)
-    }
-
-    private fun MutableMap<String, org.iof.eventor.EventClassList>.generateCalendarRaceForPerson(
-        eventor: Eventor,
-        person: Person,
-        entryList: org.iof.eventor.EntryList?,
-        startListList: org.iof.eventor.StartListList?,
-        resultListList: org.iof.eventor.ResultListList?
-    ): List<CalendarRace> {
-        var result = calendarConverter.convertEntryList(eventor, entryList, person, this)
-        result = calendarConverter.convertStartListList(eventor, startListList, person, result)
-        result = calendarConverter.convertResultList(eventor, resultListList, person, result)
-        return result.values.toList()
     }
 
     private fun filterRacesByDateRange(races: List<CalendarRace>, from: LocalDate, to: LocalDate): List<CalendarRace> {

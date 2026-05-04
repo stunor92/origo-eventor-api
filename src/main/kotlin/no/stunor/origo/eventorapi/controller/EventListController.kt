@@ -87,21 +87,4 @@ internal class EventListController {
         val httpStatus = if (result.isPartial) HttpStatus.PARTIAL_CONTENT else HttpStatus.OK
         return ResponseEntity(result.data, httpStatus)
     }
-
-    @GetMapping("/me")
-    fun getUserEntries(): ResponseEntity<List<CalendarRace>> {
-        val uidString = SecurityUtils.getCurrentUserId()
-
-        // /me endpoint requires authentication (enforced by Spring Security)
-        if (uidString == null) {
-            log.warn("Attempted to access /me endpoint without authentication")
-            return ResponseEntity(HttpStatus.UNAUTHORIZED)
-        }
-
-        val uid = UUID.fromString(uidString)
-
-        val result = calendarService.getEventList(userId = uid)
-        val httpStatus = if (result.isPartial) HttpStatus.PARTIAL_CONTENT else HttpStatus.OK
-        return ResponseEntity(result.data, httpStatus)
-    }
 }

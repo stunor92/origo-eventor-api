@@ -54,15 +54,3 @@ management:
       access: read_only
     metrics:
       access: read_only
-config:
-  personalEntries:
-    start: 0
-    end: 7
-  personalStarts:
-    start: 0
-    end: 5
-  personalResults:
-    start: 5
-    end: 0
-
-
