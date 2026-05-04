@@ -9,7 +9,6 @@ import java.util.UUID
 
 data class PersonEntry (
     override var id: UUID = UUID.randomUUID(),
-    override var entryId: String = UUID.randomUUID().toString(),
     override var raceEventorRef: String = "",
     var name: PersonName = PersonName(),
     var competitorEventorRef: String? = null,
@@ -27,5 +26,5 @@ data class PersonEntry (
     override var result: Result? = null,
     var splitTimes: MutableList<SplitTime> = mutableListOf(),
 ) : Entry(
-        id, entryId, raceEventorRef, classEventorRef, bib, status, startTime, finishTime, result
+        id, raceEventorRef, classEventorRef, bib, status, startTime, finishTime, result
 )

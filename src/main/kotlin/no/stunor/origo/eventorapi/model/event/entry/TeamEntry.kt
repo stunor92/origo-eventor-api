@@ -7,7 +7,6 @@ import java.util.UUID
 
 class TeamEntry (
     override var id: UUID = UUID.randomUUID(),
-    override var entryId: String = UUID.randomUUID().toString(),
     override var raceEventorRef: String = "",
     var name: String = "",
     var organisations: MutableList<Organisation> = mutableListOf(),
@@ -19,5 +18,5 @@ class TeamEntry (
     override var finishTime: Timestamp? = null,
     override var result: Result? = null
 ) :  Entry(
-    id, entryId, raceEventorRef, classEventorRef, bib, status, startTime, finishTime, result
+    id, raceEventorRef, classEventorRef, bib, status, startTime, finishTime, result
 )

@@ -10,6 +10,7 @@ import no.stunor.origo.eventorapi.exception.EventorNotFoundException
 import no.stunor.origo.eventorapi.model.Eventor
 import no.stunor.origo.eventorapi.model.event.Event
 import no.stunor.origo.eventorapi.model.event.Fee
+import no.stunor.origo.eventorapi.model.event.PunchingUnit
 import no.stunor.origo.eventorapi.model.event.entry.Entry
 import no.stunor.origo.eventorapi.model.event.entry.EntryStatus
 import no.stunor.origo.eventorapi.model.event.entry.PersonEntry
@@ -330,44 +331,53 @@ class EventService {
      * Punching units are replaced (not merged) if incoming has higher priority.
      */
     private fun mergePersonEntryData(existing: PersonEntry, incoming: PersonEntry, incomingHasPriority: Boolean) {
-        // Punching units: Replace if incoming has priority, otherwise merge
-        if (incoming.punchingUnits.isNotEmpty()) {
-            if (incomingHasPriority) {
-                // Higher priority source: replace entirely
-                existing.punchingUnits.clear()
-                existing.punchingUnits.addAll(incoming.punchingUnits)
-            } else {
-                // Lower priority source: only add missing units
-                val existingKeys = existing.punchingUnits.map { it.id to it.type }.toSet()
-                incoming.punchingUnits
-                    .filter { (it.id to it.type) !in existingKeys }
-                    .forEach { existing.punchingUnits.add(it) }
-            }
-        }
+        mergePunchingUnits(existing.punchingUnits, incoming.punchingUnits, incomingHasPriority)
+        replaceListWhenIncomingPresent(existing.splitTimes, incoming.splitTimes)
+        mergePersonIdentityFields(existing, incoming, incomingHasPriority)
+    }
 
-        // Split times: Always prefer result list data (only result list has this)
-        if (incoming.splitTimes.isNotEmpty()) {
-            existing.splitTimes.clear()
-            existing.splitTimes.addAll(incoming.splitTimes)
-        }
-
-        // Update other fields based on priority
+    private fun mergePersonIdentityFields(existing: PersonEntry, incoming: PersonEntry, incomingHasPriority: Boolean) {
         if (incomingHasPriority) {
             incoming.competitorEventorRef?.let { existing.competitorEventorRef = it }
             incoming.nationality?.let { existing.nationality = it }
-            if (incoming.birthYear != null) existing.birthYear = incoming.birthYear
-        } else {
-            // Only fill in if missing
-            if (existing.competitorEventorRef == null) {
-                incoming.competitorEventorRef?.let { existing.competitorEventorRef = it }
-            }
-            if (existing.nationality == null) {
-                incoming.nationality?.let { existing.nationality = it }
-            }
-            if (existing.birthYear == null && incoming.birthYear != null) {
-                existing.birthYear = incoming.birthYear
-            }
+            incoming.birthYear?.let { existing.birthYear = it }
+            return
         }
+
+        if (existing.competitorEventorRef == null) {
+            incoming.competitorEventorRef?.let { existing.competitorEventorRef = it }
+        }
+        if (existing.nationality == null) {
+            incoming.nationality?.let { existing.nationality = it }
+        }
+        if (existing.birthYear == null) {
+            incoming.birthYear?.let { existing.birthYear = it }
+        }
+    }
+
+    private fun mergePunchingUnits(
+        existingUnits: MutableList<PunchingUnit>,
+        incomingUnits: List<PunchingUnit>,
+        incomingHasPriority: Boolean
+    ) {
+        if (incomingUnits.isEmpty()) return
+
+        if (incomingHasPriority) {
+            existingUnits.clear()
+            existingUnits.addAll(incomingUnits)
+            return
+        }
+
+        val existingKeys = existingUnits.map { it.id to it.type }.toSet()
+        incomingUnits
+            .filter { (it.id to it.type) !in existingKeys }
+            .forEach { existingUnits.add(it) }
+    }
+
+    private fun <T> replaceListWhenIncomingPresent(existing: MutableList<T>, incoming: List<T>) {
+        if (incoming.isEmpty()) return
+        existing.clear()
+        existing.addAll(incoming)
     }
 
     /**
@@ -384,20 +394,7 @@ class EventService {
         incoming.teamMembers.forEach { incomingMember ->
             val personId = incomingMember.personEventorRef ?: return@forEach
             val existingMember = membersByPersonId[personId] ?: return@forEach
-
-            if (incomingMember.punchingUnits.isEmpty()) return@forEach
-
-            if (incomingHasPriority) {
-                // Higher priority source: replace entirely
-                existingMember.punchingUnits.clear()
-                existingMember.punchingUnits.addAll(incomingMember.punchingUnits)
-            } else {
-                // Lower priority source: only add missing units
-                val existingKeys = existingMember.punchingUnits.map { it.id to it.type }.toSet()
-                incomingMember.punchingUnits
-                    .filter { (it.id to it.type) !in existingKeys }
-                    .forEach { existingMember.punchingUnits.add(it) }
-            }
+            mergePunchingUnits(existingMember.punchingUnits, incomingMember.punchingUnits, incomingHasPriority)
         }
     }
 
