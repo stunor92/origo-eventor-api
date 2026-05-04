@@ -32,6 +32,7 @@ class CalendarService(
     var eventorService: EventorService
 ) {
     private val log = LoggerFactory.getLogger(this.javaClass)
+    private val slowTimingWarnMillis = 5000L
     // SynchronousQueue + high max-pool prevents nested-parallelism starvation where
     // outer tasks block while waiting for inner tasks queued on the same executor.
     private val executor = ThreadPoolExecutor(
@@ -43,6 +44,9 @@ class CalendarService(
 
     // Timeout for waiting on a batch of parallel Eventor API calls (HTTP timeout is 6s, so 30s is a safe upper bound)
     private val batchTimeoutSeconds = 30L
+
+    private fun elapsedMs(startNanos: Long): Long =
+        TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos)
 
     @PreDestroy
     fun shutdownExecutor() {
@@ -84,6 +88,7 @@ class CalendarService(
     private val personalResultsEnd = 0L
 
     fun getEventList(userId: UUID): PartialResult<List<CalendarRace>> {
+        val totalStartNanos = System.nanoTime()
         val persons = personRepository.findAllByUsers(userId)
         var timedOut = false
 
@@ -120,10 +125,20 @@ class CalendarService(
                 timedOut = true
             }
         }
+        val totalMs = elapsedMs(totalStartNanos)
+        log.info(
+            "Timing /event-list/me user={} persons={} races={} partial={} durationMs={}",
+            userId,
+            persons.size,
+            raceList.size,
+            timedOut,
+            totalMs
+        )
         return PartialResult(raceList, isPartial = timedOut)
     }
 
      private fun processPersonEntries(person: Person, eventor: Eventor): PartialResult<List<CalendarRace>> {
+        val totalStartNanos = System.nanoTime()
         var timedOut = false
         val organisationIds = person.memberships.mapNotNull { it.organisation?.eventorRef }
 
@@ -170,6 +185,7 @@ class CalendarService(
         // buildEventClassMap fires its own parallel API calls and waits for them, so starting
         // it as soon as entries arrive lets class-map fetching overlap with the still-running
         // starts/results futures.
+        val entriesFetchStartNanos = System.nanoTime()
          val entryList = try {
             entriesFuture.get(batchTimeoutSeconds, TimeUnit.SECONDS)
         } catch (_: java.util.concurrent.TimeoutException) {
@@ -177,15 +193,21 @@ class CalendarService(
             log.warn("Timeout fetching organisation entries for person {} on eventor {}", person.eventorRef, person.eventorId)
             org.iof.eventor.EntryList()
         }
+        val entriesFetchMs = elapsedMs(entriesFetchStartNanos)
+
+        val classMapStartNanos = System.nanoTime()
         val eventClassMap = buildEventClassMap(entryList, eventor)
+        val classMapMs = elapsedMs(classMapStartNanos)
 
         // Collect starts and results (likely already done or nearly done by now)
+        val startsResultsWaitStartNanos = System.nanoTime()
         try {
             CompletableFuture.allOf(startsFuture, resultsFuture).get(batchTimeoutSeconds, TimeUnit.SECONDS)
         } catch (_: java.util.concurrent.TimeoutException) {
             timedOut = true
             log.warn("Timeout fetching personal starts/results for person {} on eventor {}", person.eventorRef, person.eventorId)
         }
+        val startsResultsWaitMs = elapsedMs(startsResultsWaitStartNanos)
         val startListList = try {
             if (startsFuture.isDone) startsFuture.join() else {
                 timedOut = true
@@ -207,6 +229,7 @@ class CalendarService(
             null
         }
 
+        val conversionStartNanos = System.nanoTime()
         val races = eventClassMap.generateCalendarRaceForPerson(
             eventor,
             person,
@@ -214,6 +237,36 @@ class CalendarService(
             startListList,
             resultListList
         )
+
+        val conversionMs = elapsedMs(conversionStartNanos)
+        val totalMs = elapsedMs(totalStartNanos)
+        if (totalMs >= slowTimingWarnMillis) {
+            log.warn(
+                "Slow calendar person processing person={} eventor={} totalMs={} entriesMs={} classMapMs={} startsResultsWaitMs={} conversionMs={} races={} partial={}",
+                person.eventorRef,
+                eventor.id,
+                totalMs,
+                entriesFetchMs,
+                classMapMs,
+                startsResultsWaitMs,
+                conversionMs,
+                races.size,
+                timedOut
+            )
+        } else {
+            log.debug(
+                "Timing calendar person processing person={} eventor={} totalMs={} entriesMs={} classMapMs={} startsResultsWaitMs={} conversionMs={} races={} partial={}",
+                person.eventorRef,
+                eventor.id,
+                totalMs,
+                entriesFetchMs,
+                classMapMs,
+                startsResultsWaitMs,
+                conversionMs,
+                races.size,
+                timedOut
+            )
+        }
         return PartialResult(races, isPartial = timedOut)
     }
 
@@ -221,6 +274,7 @@ class CalendarService(
         entryList: org.iof.eventor.EntryList,
         eventor: Eventor
     ): MutableMap<String, org.iof.eventor.EventClassList> {
+        val totalStartNanos = System.nanoTime()
         // Map raceId -> eventId, deduplicating by eventId to avoid redundant API calls
         val raceToEventId = mutableMapOf<String, String>()
         for (entry in entryList.entry) {
@@ -260,6 +314,14 @@ class CalendarService(
                 }
             }
             .toMap()
+
+        log.debug(
+            "Timing event class map eventor={} uniqueEvents={} resolvedClasses={} durationMs={}",
+            eventor.id,
+            uniqueEventIds.size,
+            classesByEventId.size,
+            elapsedMs(totalStartNanos)
+        )
 
         // Map raceId -> EventClassList
         val eventClassMap = mutableMapOf<String, org.iof.eventor.EventClassList>()
