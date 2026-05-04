@@ -29,21 +29,16 @@ spring:
   mvc:
     format:
       date: yyyy-MM-dd
-   web:
-     error:
-       include-message: always
-   cache:
-     type: simple
-     cache-names:
-       - event-classes
-       - event-lists
-       - competitor-counts
-       - organisation-entries
-   cacheSpecs:
-     event-classes: maximumSize=1000,expireAfterWrite=1h
-     event-lists: maximumSize=500,expireAfterWrite=10m
-     competitor-counts: maximumSize=500,expireAfterWrite=30m
-     organisation-entries: maximumSize=500,expireAfterWrite=10m
+  web:
+    error:
+      include-message: always
+  cache:
+    type: caffeine
+    cache-names:
+      - event-classes
+      - event-lists
+      - competitor-counts
+      - organisation-entries
 management:
   endpoints:
     web:
