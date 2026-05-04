@@ -1,6 +1,7 @@
 package no.stunor.origo.eventorapi.services.converter
 
 import no.stunor.origo.eventorapi.model.Eventor
+import no.stunor.origo.eventorapi.model.event.EventClass
 import no.stunor.origo.eventorapi.model.event.entry.Entry
 import no.stunor.origo.eventorapi.model.event.entry.EntryStatus
 import no.stunor.origo.eventorapi.model.event.entry.PersonEntry
@@ -51,9 +52,12 @@ class StartListConverter {
         personStart: org.iof.eventor.PersonStart,
         raceStart: org.iof.eventor.RaceStart
     ): Entry {
+        val classEventorRef = classStart.eventClass.eventClassId.content
+        val eventClass = convertEventClassFromIOF(classStart.eventClass)
         return PersonEntry(
             raceEventorRef = raceStart.eventRaceId.content,
-            classEventorRef = classStart.eventClass.eventClassId.content,
+            classEventorRef = classEventorRef,
+            eventClass = eventClass,
             personEventorRef = if (personStart.person.personId != null)
                 personStart.person.personId.content
             else null,
@@ -90,9 +94,12 @@ class StartListConverter {
         classStart: org.iof.eventor.ClassStart,
         personStart: org.iof.eventor.PersonStart
     ): Entry {
+        val classEventorRef = classStart.eventClass.eventClassId.content
+        val eventClass = convertEventClassFromIOF(classStart.eventClass)
         return PersonEntry(
             raceEventorRef = event.eventRace[0].eventRaceId.content,
-            classEventorRef = classStart.eventClass.eventClassId.content,
+            classEventorRef = classEventorRef,
+            eventClass = eventClass,
             personEventorRef = if (personStart.person.personId != null) personStart.person.personId.content else null,
             name = personConverter.convertPersonName(personStart.person.personName),
             organisation = if (personStart.organisation != null)
@@ -124,9 +131,12 @@ class StartListConverter {
         classStart: org.iof.eventor.ClassStart,
         teamStart: org.iof.eventor.TeamStart
     ): Entry {
+        val classEventorRef = classStart.eventClass.eventClassId.content
+        val eventClass = convertEventClassFromIOF(classStart.eventClass)
         return TeamEntry(
             raceEventorRef = event.eventRace[0].eventRaceId.content,
-            classEventorRef = classStart.eventClass.eventClassId.content,
+            classEventorRef = classEventorRef,
+            eventClass = eventClass,
             name = teamStart.teamName.content,
             organisations = organisationConverter.convertOrganisations(
                 organisations = teamStart.organisationIdOrOrganisationOrCountryId,
@@ -141,6 +151,19 @@ class StartListConverter {
             status = EntryStatus.SignedUp
         )
 
+    }
+
+    /**
+     * Converts IOF EventClass to our EventClass  model without needing an Event parent.
+     * This is a simplified conversion that doesn't require database lookup.
+     */
+    private fun convertEventClassFromIOF(iofEventClass: org.iof.eventor.EventClass): EventClass {
+        return EventClass(
+            eventorRef = iofEventClass.eventClassId.content,
+            name = iofEventClass.name?.content ?: iofEventClass.eventClassId.content,
+            shortName = iofEventClass.classShortName?.content ?: iofEventClass.name?.content ?: iofEventClass.eventClassId.content,
+            event = null  // No parent event needed for start list
+        )
     }
 
     private fun convertTeamMembers(
