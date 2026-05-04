@@ -8,7 +8,7 @@ import java.sql.ResultSet
 import java.util.*
 
 @Repository
-open class FeeRepository(private val jdbcTemplate: JdbcTemplate) {
+class FeeRepository(private val jdbcTemplate: JdbcTemplate) {
 
     private val rowMapper = RowMapper { rs: ResultSet, _: Int ->
         Fee(
@@ -29,7 +29,7 @@ open class FeeRepository(private val jdbcTemplate: JdbcTemplate) {
         )
     }
     
-    open fun findAllByEventId(eventId: UUID?): List<Fee> {
+    fun findAllByEventId(eventId: UUID?): List<Fee> {
         if (eventId == null) return emptyList()
         return jdbcTemplate.query(
             "SELECT * FROM fee WHERE event_id = ?",
@@ -38,7 +38,7 @@ open class FeeRepository(private val jdbcTemplate: JdbcTemplate) {
         )
     }
     
-    open fun save(fee: Fee): Fee {
+    fun save(fee: Fee): Fee {
         if (fee.id == null) {
             fee.id = UUID.randomUUID()
             jdbcTemplate.update(
@@ -85,24 +85,22 @@ open class FeeRepository(private val jdbcTemplate: JdbcTemplate) {
             jdbcTemplate.update("DELETE FROM class_fee WHERE fee_id = ?", fee.id)
             // Then insert new ones
             for (eventClass in fee.classes) {
-                if (eventClass.id != null) {
-                    jdbcTemplate.update(
-                        "INSERT INTO class_fee (fee_id, class_id) VALUES (?, ?) ON CONFLICT DO NOTHING",
-                        fee.id, eventClass.id
-                    )
-                }
+                jdbcTemplate.update(
+                    "INSERT INTO class_fee (fee_id, class_id) VALUES (?, ?) ON CONFLICT DO NOTHING",
+                    fee.id, eventClass.id
+                )
             }
         }
         
         return fee
     }
     
-    open fun saveAll(fees: List<Fee>): List<Fee> {
+    fun saveAll(fees: List<Fee>): List<Fee> {
         fees.forEach { save(it) }
         return fees
     }
     
-    open fun deleteAll(fees: List<Fee>) {
+    fun deleteAll(fees: List<Fee>) {
         fees.forEach { fee ->
             fee.id?.let { id ->
                 jdbcTemplate.update("DELETE FROM class_fee WHERE fee_id = ?", id)

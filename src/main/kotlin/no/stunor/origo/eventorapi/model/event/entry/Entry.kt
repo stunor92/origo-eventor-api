@@ -5,7 +5,6 @@ import java.util.UUID
 
 abstract class Entry(
     open var id: UUID = UUID.randomUUID(),
-    open var entryId: String,    //TODO REMOVE
     open var raceEventorRef: String,
     open var classEventorRef: String,
     open var bib: String?,

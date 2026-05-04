@@ -8,7 +8,7 @@ import java.sql.ResultSet
 import java.util.*
 
 @Repository
-open class EventRepository(
+class EventRepository(
     private val jdbcTemplate: JdbcTemplate,
     private val organisationRepository: OrganisationRepository
 ) {
@@ -75,7 +75,7 @@ open class EventRepository(
         )
     }
     
-    open fun findByEventorIdAndEventorRef(eventorId: String, eventorRef: String): Event? {
+    fun findByEventorIdAndEventorRef(eventorId: String, eventorRef: String): Event? {
         return try {
             jdbcTemplate.queryForObject(
                 "SELECT * FROM event WHERE eventor_id = ? AND eventor_ref = ?",
@@ -87,7 +87,7 @@ open class EventRepository(
         }
     }
     
-    open fun save(event: Event): Event {
+    fun save(event: Event): Event {
         // Convert arrays to SQL arrays
         val disciplinesArray = jdbcTemplate.dataSource?.connection?.use { conn ->
             conn.createArrayOf("discipline", event.disciplines.map { it.name }.toTypedArray())
@@ -159,9 +159,6 @@ open class EventRepository(
         
         // Save event classes - upsert based on (event_id, eventor_ref)
         event.classes.forEach { eventClass ->
-            if (eventClass.id == null) {
-                eventClass.id = UUID.randomUUID()
-            }
             jdbcTemplate.update(
                 """
                 INSERT INTO class (id, event_id, eventor_ref, name, short_name, type, 
