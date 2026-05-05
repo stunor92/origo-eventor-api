@@ -170,7 +170,38 @@ class CalendarService(
 
         log.info("Fetching competitor-count for persons {} and organisations {}.", personIds, organisationIds)
         val competitorCountList = eventorService.getCompetitorCounts(eventor, events, organisationIds, personIds)
-        val races = calendarConverter.convertEvents(eventList, eventor, competitorCountList)
+
+        // Fetch event classes for all events in parallel
+        log.info("Fetching event classes for {} events", events.size)
+        val eventClassesFutures = events.map { eventId ->
+            CompletableFuture.supplyAsync({
+                eventId to eventorService.getEventClasses(eventor, eventId)
+            }, executor).exceptionally { ex ->
+                log.warn("Failed to fetch event classes for event {}: {}", eventId, ex.message)
+                eventId to null
+            }
+        }
+
+        // Wait for all event class fetches to complete (with timeout)
+        try {
+            CompletableFuture.allOf(*eventClassesFutures.toTypedArray()).get(batchTimeoutSeconds, TimeUnit.SECONDS)
+        } catch (_: java.util.concurrent.TimeoutException) {
+            log.warn("Timeout fetching event classes after {} seconds", batchTimeoutSeconds)
+        }
+
+        // Collect results
+        val eventClassesMap = eventClassesFutures.mapNotNull { future ->
+            if (future.isDone) {
+                try {
+                    future.join()
+                } catch (ex: Exception) {
+                    log.warn("Failed to retrieve event classes: {}", ex.message)
+                    null
+                }
+            } else null
+        }.toMap()
+
+        val races = calendarConverter.convertEvents(eventList, eventor, competitorCountList, eventClassesMap)
         return PartialResult(races, isPartial = false)
     }
 
