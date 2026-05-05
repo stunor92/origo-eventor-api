@@ -169,7 +169,6 @@ class EventServiceTest {
         val eventor = EventorFactory.createEventorNorway()
         val resultList = mockk<ResultList>()
         val entryList = mockk<EntryList>()
-        val mockEvent = mockk<no.stunor.origo.eventorapi.model.event.Event>()
 
         // Create real PersonEntry objects with IDs
         val mockEntries = listOf(
@@ -185,9 +184,6 @@ class EventServiceTest {
         every { startListConverter.convertEventStartList(any(), any()) } returns emptyList()
         every { eventorService.getEventResultList(eventor.baseUrl, eventor.eventorApiKey, eventId) } returns resultList
         every { resultListConverter.convertEventResultList(eventor, resultList) } returns mockEntries
-        every { eventRepository.findByEventorIdAndEventorRef(eventorId, eventId) } returns mockEvent
-        every { mockEvent.id } returns UUID.randomUUID()
-        every { eventClassRepository.findByEventId(any()) } returns emptyList()
 
         // When
         val result = eventService.getEntryList(eventorId, eventId)
@@ -206,7 +202,7 @@ class EventServiceTest {
         val eventor = EventorFactory.createEventorNorway()
         val startList = mockk<StartList>()
         val entryList = mockk<EntryList>()
-
+        
         every { eventorRepository.findById(eventorId) } returns eventor
         every { eventorService.getEventResultList(eventor.baseUrl, eventor.eventorApiKey, eventId) } returns null
         every { eventorService.getEventStartList(eventor.baseUrl, eventor.eventorApiKey, eventId) } returns startList

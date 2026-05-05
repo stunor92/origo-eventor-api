@@ -1,6 +1,5 @@
 package no.stunor.origo.eventorapi.model.event.entry
 
-import no.stunor.origo.eventorapi.model.event.EventClass
 import no.stunor.origo.eventorapi.model.event.PunchingUnit
 import no.stunor.origo.eventorapi.model.organisation.Organisation
 import no.stunor.origo.eventorapi.model.person.Gender
@@ -19,7 +18,6 @@ data class PersonEntry (
     var nationality: String? = null,
     var gender: Gender = Gender.Other,
     override var classEventorRef: String = "",
-    override var eventClass: EventClass = EventClass(),
     override var bib: String? = null,
     var punchingUnits: MutableList<PunchingUnit> = mutableListOf(),
     override var status: EntryStatus,
@@ -28,5 +26,5 @@ data class PersonEntry (
     override var result: Result? = null,
     var splitTimes: MutableList<SplitTime> = mutableListOf(),
 ) : Entry(
-        id, raceEventorRef, classEventorRef, eventClass, bib, status, startTime, finishTime, result
+        id, raceEventorRef, classEventorRef, bib, status, startTime, finishTime, result
 )

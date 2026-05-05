@@ -1,7 +1,6 @@
 package no.stunor.origo.eventorapi.services.converter
 
 import no.stunor.origo.eventorapi.model.Eventor
-import no.stunor.origo.eventorapi.model.event.EventClass
 import no.stunor.origo.eventorapi.model.event.PunchingUnit
 import no.stunor.origo.eventorapi.model.event.PunchingUnitType
 import no.stunor.origo.eventorapi.model.event.entry.Entry
@@ -38,16 +37,11 @@ class EntryListConverter {
     private fun convertPersonEventEntries(entry: org.iof.eventor.Entry, eventor: Eventor): List<Entry> {
         val result  = mutableListOf<Entry>()
 
-        // Convert EventClass from IOF-XML
-        val classEventorRef = entry.entryClass[0].eventClassId.content
-        val eventClass = convertEventClassFromIOF(entry.entryClass[0])
-
         for (raceId in entry.eventRaceId) {
             result.add(
                 PersonEntry(
                     raceEventorRef = raceId.content,
-                    classEventorRef = classEventorRef,
-                    eventClass = eventClass,
+                    classEventorRef = entry.entryClass[0].eventClassId.content,
                     personEventorRef = if (entry.competitor.person.personId != null) entry.competitor.person.personId.content else null,
                     name = personConverter.convertPersonName(entry.competitor.person.personName),
                     organisation =
@@ -78,16 +72,11 @@ class EntryListConverter {
     private fun convertTeamEventEntries(entry: org.iof.eventor.Entry, eventor: Eventor): List<Entry> {
         val result  = mutableListOf<Entry>()
 
-        // Convert EventClass from IOF-XML
-        val classEventorRef = entry.entryClass[0].eventClassId.content
-        val eventClass = convertEventClassFromIOF(entry.entryClass[0])
-
         for (race in entry.teamCompetitor[0].entryEntryFee) {
             result.add(
                 TeamEntry(
                     raceEventorRef = race.eventRaceId,
-                    classEventorRef = classEventorRef,
-                    eventClass = eventClass,
+                    classEventorRef = entry.entryClass[0].eventClassId.content,
                     name = entry.teamName.content,
                     organisations =  convertTeamOrganisations(entry.teamCompetitor, eventor),
                     bib = if (entry.bibNumber != null) entry.bibNumber.content else null,
@@ -101,19 +90,6 @@ class EntryListConverter {
 
         }
         return result
-    }
-
-    /**
-     * Converts IOF EventClass to our EventClass model without needing an Event parent.
-     * This is a simplified conversion that doesn't require database lookup.
-     */
-    private fun convertEventClassFromIOF(iofEventClass: org.iof.eventor.EntryClass): EventClass {
-        return EventClass(
-            eventorRef = iofEventClass.eventClassId.content,
-            name = iofEventClass.eventClass.name?.content ?: iofEventClass.eventClassId.content,
-            shortName = iofEventClass.classShortName?.content ?: iofEventClass.eventClass.classShortName?.content ?: iofEventClass.eventClassId.content,
-            event = null  // No parent event needed for entry list
-        )
     }
 
     private fun convertTeamOrganisations(

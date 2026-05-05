@@ -282,10 +282,10 @@ class EventService {
 
         // Merge fields based on priority
         // Class: Incoming overwrites if it has higher priority
-        if (incomingHasPriority && incoming.eventClass.eventorRef.isNotBlank()) {
-            existing.eventClass.eventorRef = incoming.eventClass.eventorRef
-        } else if (existing.eventClass.eventorRef.isBlank() && incoming.eventClass.eventorRef.isNotBlank()) {
-            existing.eventClass.eventorRef = incoming.eventClass.eventorRef
+        if (incomingHasPriority && incoming.classEventorRef.isNotBlank()) {
+            existing.classEventorRef = incoming.classEventorRef
+        } else if (existing.classEventorRef.isBlank() && incoming.classEventorRef.isNotBlank()) {
+            existing.classEventorRef = incoming.classEventorRef
         }
 
         // Bib: Incoming overwrites if it has higher priority
@@ -646,22 +646,20 @@ class EventService {
      * Retrieves and merges entry lists from Eventor API.
      *
      * Fetching and merging strategy:
-     * 1. Fetch entry, start, and result lists in parallel for performance
-     * 2. Converters extract and convert EventClass directly from IOF-XML (ClassEntry, ClassStart, ClassResult)
+     * 1. Fetch entry list and result list in parallel for performance
+     * 2. Fetch start list in parallel as well (always, not just as fallback)
      * 3. Merge in priority order: Entry (base) → Start (medium) → Result (highest)
      * 4. When participant changes class/bib: Result > Start > Entry
      * 5. Mark entries not in result list as Deregistered
      *
      * Performance: Parallel API calls reduce total time significantly
      * Data accuracy: All three lists ensure we catch class changes and deregistrations
-     * EventClass is always populated from IOF-XML regardless of database state
      */
     fun getEntryList(eventorId: String, eventId: String): List<Entry> {
         val eventor = eventorRepository.findById(eventorId)
             ?: throw EventorNotFoundException()
 
         // Fetch all three lists in parallel for best performance
-        // Each converter will extract EventClass directly from IOF-XML
         val entryFuture = CompletableFuture.supplyAsync({
             fetchEntryEntries(eventor, eventId)
         }, executor).exceptionally { ex ->

@@ -1,7 +1,6 @@
 package no.stunor.origo.eventorapi.services.converter
 
 import no.stunor.origo.eventorapi.model.Eventor
-import no.stunor.origo.eventorapi.model.event.EventClass
 import no.stunor.origo.eventorapi.model.event.entry.Entry
 import no.stunor.origo.eventorapi.model.event.entry.EntryStatus
 import no.stunor.origo.eventorapi.model.event.entry.PersonEntry
@@ -70,12 +69,9 @@ class ResultListConverter {
         classResult: org.iof.eventor.ClassResult,
         personResult: org.iof.eventor.PersonResult
     ): Entry {
-        val classEventorRef = classResult.eventClass.eventClassId.content
-        val eventClass = convertEventClassFromIOF(classResult.eventClass)
         return PersonEntry(
             raceEventorRef = event.eventRace[0].eventRaceId.content,
-            classEventorRef = classEventorRef,
-            eventClass = eventClass,
+            classEventorRef = classResult.eventClass.eventClassId.content,
             personEventorRef = if (personResult.person.personId != null) personResult.person.personId.content else null,
             name = personConverter.convertPersonName(personResult.person.personName),
             organisation = if(personResult.organisation != null)
@@ -111,12 +107,9 @@ class ResultListConverter {
         personResult: org.iof.eventor.PersonResult,
         raceResult: org.iof.eventor.RaceResult
     ): Entry {
-        val classEventorRef = classResult.eventClass.eventClassId.content
-        val eventClass = convertEventClassFromIOF(classResult.eventClass)
         return PersonEntry(
             raceEventorRef = raceResult.eventRaceId.content,
-            classEventorRef = classEventorRef,
-            eventClass = eventClass,
+            classEventorRef = classResult.eventClass.eventClassId.content,
             personEventorRef = if (personResult.person.personId != null) personResult.person.personId.content else null,
             name = personConverter.convertPersonName(personResult.person.personName),
             organisation = if(personResult.organisation != null)
@@ -164,12 +157,9 @@ class ResultListConverter {
         classResult: org.iof.eventor.ClassResult,
         teamResult: org.iof.eventor.TeamResult
     ): Entry {
-        val classEventorRef = classResult.eventClass.eventClassId.content
-        val eventClass = convertEventClassFromIOF(classResult.eventClass)
         return TeamEntry(
             raceEventorRef = event.eventRace[0].eventRaceId.content,
-            classEventorRef = classEventorRef,
-            eventClass = eventClass,
+            classEventorRef = classResult.eventClass.eventClassId.content,
             name = teamResult.teamName.content,
             organisations =  organisationConverter.convertOrganisations(
                 organisations = teamResult.organisationIdOrOrganisationOrCountryId,
@@ -187,19 +177,6 @@ class ResultListConverter {
             ) else null,
             result = convertTeamResult(teamResult),
             status = EntryStatus.Finished
-        )
-    }
-
-    /**
-     * Converts IOF EventClass to our EventClass model without needing an Event parent.
-     * This is a simplified conversion that doesn't require database lookup.
-     */
-    private fun convertEventClassFromIOF(iofEventClass: org.iof.eventor.EventClass): EventClass {
-        return EventClass(
-            eventorRef = iofEventClass.eventClassId.content,
-            name = iofEventClass.name?.content ?: iofEventClass.eventClassId.content,
-            shortName = iofEventClass.classShortName?.content ?: iofEventClass.name?.content ?: iofEventClass.eventClassId.content,
-            event = null  // No parent event needed for result list
         )
     }
 
