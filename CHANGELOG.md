@@ -1,5 +1,30 @@
 # Changelog
 
+## [13.1.0](https://github.com/stunor92/origo-eventor-api/compare/v13.0.0...v13.1.0) (2026-05-05)
+
+
+### Features
+
+* remove personal-races service due to performance issue ([1355e56](https://github.com/stunor92/origo-eventor-api/commit/1355e56321c1b3065a8b3bb1aaa774ea2bda6394))
+* send eventClass object in CalendarRace.kt ([88de931](https://github.com/stunor92/origo-eventor-api/commit/88de9317f8c8273e10eb968bf7670b3f7b9a86a6))
+* send eventClass object in entry ([d79d119](https://github.com/stunor92/origo-eventor-api/commit/d79d119997e3826dbfa889d8524ef81f1a859ed5))
+
+
+### Bug Fixes
+
+* Fix cache config ([313bd2c](https://github.com/stunor92/origo-eventor-api/commit/313bd2c8c8d6e448ed7a265c09c17300a041c86b))
+* fix jdk distro to liberica ([9f08a93](https://github.com/stunor92/origo-eventor-api/commit/9f08a931f37ea6bbaa54cd294823a6307f0499d5))
+* handle decimals on eventClass ([941e02e](https://github.com/stunor92/origo-eventor-api/commit/941e02eecae1755a0ea6e01b3c186f1af4b978c1))
+* remove not needed test for calendar-converting ([a110d96](https://github.com/stunor92/origo-eventor-api/commit/a110d96f54a98053b117177dc89cef7d16e6e03f))
+* Revert LinkedBlockingQueue change ([578b93b](https://github.com/stunor92/origo-eventor-api/commit/578b93bb7ca507826118a0ab1dd0dea613088486))
+
+
+### Performance Improvements
+
+* Add logging of time for calender-requests ([916a9cb](https://github.com/stunor92/origo-eventor-api/commit/916a9cb0981d497a205446b16034b56aa4a02ed4))
+* Implement caching of eventor-data and graceful return partial result instead of 500 error ([7eda3c8](https://github.com/stunor92/origo-eventor-api/commit/7eda3c8e824342a71c1513dd4c14a699ef2eb1a9))
+* parallelize Eventor API calls for entry-list and event-list/me ([#325](https://github.com/stunor92/origo-eventor-api/issues/325)) ([b5cddac](https://github.com/stunor92/origo-eventor-api/commit/b5cddac1343b2ce9382cebdc7f528a80b8a74a2b))
+
 ## [2.0.0](https://github.com/stunor92/origo-eventor-api/compare/v12.0.10...v2.0.0) (2026-05-03)
 
 
