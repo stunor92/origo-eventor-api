@@ -9,6 +9,22 @@ import org.iof.eventor.HashTableEntry
 
 class EventClassConverter {
     companion object {
+        /**
+         * Safely parse a string to integer, handling European decimal format (comma separator).
+         * Rounds decimal values to nearest integer.
+         * @param value String value to parse (may contain comma as decimal separator)
+         * @return Parsed integer value or null if parsing fails
+         */
+        private fun safeParseInt(value: String?): Int? {
+            if (value == null) return null
+            return try {
+                // Replace comma with period for European decimal format, then round to int
+                value.replace(',', '.').toDouble().toInt()
+            } catch (_: NumberFormatException) {
+                null
+            }
+        }
+
         fun convertEventClasses(
             eventCLassList: EventClassList?,
             event: Event
@@ -30,14 +46,14 @@ class EventClassConverter {
                 name = eventClass.name.content,
                 shortName = eventClass.classShortName.content,
                 type = getClassTypeFromId(if (eventClass.classType != null) eventClass.classType.classTypeId.content else eventClass.classTypeId.content),
-                minAge = if (eventClass.lowAge != null) eventClass.lowAge.toInt() else null,
-                maxAge = if (eventClass.highAge != null) eventClass.highAge.toInt() else null,
+                minAge = safeParseInt(eventClass.lowAge),
+                maxAge = safeParseInt(eventClass.highAge),
                 gender = convertGender(eventClass.sex),
                 presentTime = getTimePresentation(eventClass.hashTableEntry),
                 orderedResult = getResultListMode(eventClass.hashTableEntry),
-                legs = (if (eventClass.numberOfLegs != null) eventClass.numberOfLegs.toInt() else null)!!,
-                minAverageAge = if (eventClass.minAverageAge != null) eventClass.minAverageAge.toInt() else null,
-                maxAverageAge = if (eventClass.maxAverageAge != null) eventClass.maxAverageAge.toInt() else null,
+                legs = safeParseInt(eventClass.numberOfLegs) ?: 1,
+                minAverageAge = safeParseInt(eventClass.minAverageAge),
+                maxAverageAge = safeParseInt(eventClass.maxAverageAge),
                 event = event
             )
         }
@@ -81,17 +97,5 @@ class EventClassConverter {
             return true
         }
 
-        fun getEventClassFromId(
-            eventClassList: EventClassList,
-            entryClassId: String,
-            event: Event
-        ): EventClass? {
-            for (eventClass in eventClassList.eventClass) {
-                if (eventClass.eventClassId.content == entryClassId) {
-                    return convertEventClass(event, eventClass)
-                }
-            }
-            return null
-        }
     }
 }

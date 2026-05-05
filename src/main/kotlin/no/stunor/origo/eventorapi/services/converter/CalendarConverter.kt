@@ -54,24 +54,24 @@ class CalendarConverter(
         val eventClasses = EventClassConverter.convertEventClasses(eventClassList, convertedEvent)
 
         return CalendarRace(
-            eventor = eventor,
-            eventId = eventId,
-            eventName = event.name.content,
-            raceId = eventRace.eventRaceId.content,
-            raceName = eventRace.name.content,
-            raceDate = TimeStampConverter.parseDate("${eventRace.raceDate.date.content} 00:00:00"),
-            type = eventConverter.convertEventForm(event.eventForm),
-            classification = eventConverter.convertEventClassification(event.eventClassificationId.content),
-            lightCondition = eventConverter.convertLightCondition(eventRace.raceLightCondition),
-            distance = eventConverter.convertRaceDistance(eventRace.raceDistance),
-            position = eventRace.eventCenterPosition?.let { eventConverter.convertPosition(it) },
-            status = eventConverter.convertEventStatus(event.eventStatusId.content),
-            disciplines = eventConverter.convertEventDisciplines(event.disciplineIdOrDiscipline),
-            organisers = event.organiser?.let { organisationConverter.convertOrganisations(it.organisationIdOrOrganisation, eventor.id) } ?: listOf(),
-            entryBreaks = eventConverter.convertEntryBreaks(event.entryBreak, eventor),
-            entries = getEntries(event.eventId.content, eventRace.eventRaceId.content, competitorCountList),
-            userEntries = mutableListOf(),
-            organisationEntries = getOrganisationEntries(event.eventId.content, eventRace.eventRaceId.content, competitorCountList, eventor),
+        eventor = eventor,
+        eventId = event.eventId.content,
+        eventName = event.name.content,
+        raceId = eventRace.eventRaceId.content,
+        raceName = eventRace.name.content,
+        raceDate = TimeStampConverter.parseDate("${eventRace.raceDate.date.content} 00:00:00"),
+        type = eventConverter.convertEventForm(event.eventForm),
+        classification = eventConverter.convertEventClassification(event.eventClassificationId.content),
+        lightCondition = eventConverter.convertLightCondition(eventRace.raceLightCondition),
+        distance = eventConverter.convertRaceDistance(eventRace.raceDistance),
+        position = eventRace.eventCenterPosition?.let { eventConverter.convertPosition(it) },
+        status = eventConverter.convertEventStatus(event.eventStatusId.content),
+        disciplines = eventConverter.convertEventDisciplines(event.disciplineIdOrDiscipline),
+        organisers = event.organiser?.let { organisationConverter.convertOrganisations(it.organisationIdOrOrganisation, eventor.id) } ?: listOf(),
+        entryBreaks = eventConverter.convertEntryBreaks(event.entryBreak, eventor),
+        entries = getEntries(event.eventId.content, eventRace.eventRaceId.content, competitorCountList),
+        userEntries = mutableListOf(),
+        organisationEntries = getOrganisationEntries(event.eventId.content, eventRace.eventRaceId.content, competitorCountList, eventor),
             signedUp = isSignedUp(event.eventId.content, competitorCountList),
             startList = eventConverter.hasStartList(event.hashTableEntry, eventRace.eventRaceId.content),
             resultList = eventConverter.hasResultList(event.hashTableEntry, eventRace.eventRaceId.content),
@@ -100,4 +100,5 @@ class CalendarConverter(
 
     private fun isSignedUp(eventId: String, competitorCountList: org.iof.eventor.CompetitorCountList?): Boolean =
         competitorCountList?.competitorCount?.any { it.eventId == eventId && !it.classCompetitorCount.isNullOrEmpty() } ?: false
+
 }
