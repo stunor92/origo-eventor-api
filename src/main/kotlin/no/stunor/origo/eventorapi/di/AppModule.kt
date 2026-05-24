@@ -102,7 +102,7 @@ fun appModule(config: ApplicationConfig) = module {
     single { PersonConverter(get()) }
     single { EntryListConverter(get(), get()) }
     single { StartListConverter(get(), get()) }
-    single { ResultListConverter(get(), get()) }
+    single { ResultListConverter(get(), get(), get()) }
     single { EventConverter(get()) }
     single { CalendarConverter(get(), get()) }
 

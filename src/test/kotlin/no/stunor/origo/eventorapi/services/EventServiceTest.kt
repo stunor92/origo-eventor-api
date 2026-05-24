@@ -3,7 +3,7 @@ package no.stunor.origo.eventorapi.services
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
-import jakarta.xml.bind.JAXBContext
+import javax.xml.bind.JAXBContext
 import no.stunor.origo.eventorapi.api.EventorService
 import no.stunor.origo.eventorapi.data.EventClassRepository
 import no.stunor.origo.eventorapi.data.EventRepository

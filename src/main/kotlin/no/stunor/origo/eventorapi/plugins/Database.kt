@@ -22,7 +22,7 @@ fun Application.configureShutdownHook() {
     val eventService:    EventService    by inject()
     val dataSource:      DataSource      by inject()
 
-    environment.monitor.subscribe(ApplicationStopped) {
+    monitor.subscribe(ApplicationStopped) {
         log.info("Application stopping – shutting down executor pools and DB pool")
         calendarService.shutdownExecutor()
         eventService.shutdownExecutor()

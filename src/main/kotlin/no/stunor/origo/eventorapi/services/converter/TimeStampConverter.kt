@@ -1,13 +1,11 @@
 package no.stunor.origo.eventorapi.services.converter
 
-import org.springframework.stereotype.Component
 import java.sql.Timestamp
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 
-@Component
 class TimeStampConverter {
     companion object {
 

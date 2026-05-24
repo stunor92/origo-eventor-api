@@ -221,14 +221,23 @@ class EventService(
             existing.classEventorRef = incoming.classEventorRef
         }
 
-        if (incomingHasPriority) { incoming.bib?.let { existing.bib = it } }
-        else if (existing.bib == null) { incoming.bib?.let { existing.bib = it } }
+        if (incomingHasPriority) {
+            incoming.bib?.let { existing.bib = it }
+        } else if (existing.bib == null) {
+            incoming.bib?.let { existing.bib = it }
+        }
 
-        if (incomingHasPriority) { incoming.startTime?.let { existing.startTime = it } }
-        else if (existing.startTime == null) { incoming.startTime?.let { existing.startTime = it } }
+        if (incomingHasPriority) {
+            incoming.startTime?.let { existing.startTime = it }
+        } else if (existing.startTime == null) {
+            incoming.startTime?.let { existing.startTime = it }
+        }
 
-        if (incomingHasPriority) { incoming.finishTime?.let { existing.finishTime = it } }
-        else if (existing.finishTime == null) { incoming.finishTime?.let { existing.finishTime = it } }
+        if (incomingHasPriority) {
+            incoming.finishTime?.let { existing.finishTime = it }
+        } else if (existing.finishTime == null) {
+            incoming.finishTime?.let { existing.finishTime = it }
+        }
 
         incoming.result?.let { existing.result = it }
 
