@@ -3,11 +3,9 @@ package no.stunor.origo.eventorapi.data
 import no.stunor.origo.eventorapi.model.event.*
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.jdbc.core.RowMapper
-import org.springframework.stereotype.Repository
 import java.sql.ResultSet
 import java.util.*
 
-@Repository
 class EventRepository(
     private val jdbcTemplate: JdbcTemplate,
     private val organisationRepository: OrganisationRepository

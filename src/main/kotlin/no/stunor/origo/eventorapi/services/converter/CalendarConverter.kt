@@ -4,10 +4,10 @@ import no.stunor.origo.eventorapi.data.RegionRepository
 import no.stunor.origo.eventorapi.model.Eventor
 import no.stunor.origo.eventorapi.model.calendar.*
 import no.stunor.origo.eventorapi.model.event.Event
-import org.springframework.stereotype.Component
 
 
-@Component
+
+
 class CalendarConverter(
     var organisationRepository: OrganisationRepository,
     var regionRepository: RegionRepository

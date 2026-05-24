@@ -1,8 +1,8 @@
-FROM eclipse-temurin:25-jdk-jammy AS builder
+FROM eclipse-temurin:17-jdk-jammy AS builder
 WORKDIR /build
 COPY . .
-RUN ./mvnw package -DskipTests
+RUN ./gradlew shadowJar --no-daemon
 
-FROM gcr.io/distroless/java25-debian13
-COPY --from=builder /build/target/*.jar /app.jar
+FROM gcr.io/distroless/java17-debian12
+COPY --from=builder /build/build/libs/*.jar /app.jar
 ENTRYPOINT ["java", "-jar", "/app.jar"]

@@ -6,15 +6,13 @@ import no.stunor.origo.eventorapi.model.event.entry.EntryStatus
 import no.stunor.origo.eventorapi.model.event.entry.PersonEntry
 import no.stunor.origo.eventorapi.model.event.entry.TeamEntry
 import no.stunor.origo.eventorapi.model.event.entry.TeamMember
-import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.stereotype.Component
 
-@Component
-class StartListConverter {
-    @Autowired
-    private lateinit var organisationConverter: OrganisationConverter
-    @Autowired
-    private lateinit var personConverter: PersonConverter
+
+
+class StartListConverter(
+    private val organisationConverter: OrganisationConverter,
+    private val personConverter: PersonConverter
+) {
 
     fun convertEventStartList(eventor: Eventor, startList: org.iof.eventor.StartList): List<Entry> {
         val entries = mutableListOf<Entry>()

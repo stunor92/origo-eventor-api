@@ -5,11 +5,9 @@ import no.stunor.origo.eventorapi.model.event.EventClass
 import no.stunor.origo.eventorapi.model.event.EventClassTypeEnum
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.jdbc.core.RowMapper
-import org.springframework.stereotype.Repository
 import java.sql.ResultSet
 import java.util.*
 
-@Repository
 open class EventClassRepository(private val jdbcTemplate: JdbcTemplate) {
 
     private val rowMapper = RowMapper { rs: ResultSet, _: Int ->

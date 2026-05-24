@@ -4,11 +4,9 @@ import no.stunor.origo.eventorapi.model.person.UserPerson
 import no.stunor.origo.eventorapi.model.person.UserPersonKey
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.jdbc.core.RowMapper
-import org.springframework.stereotype.Repository
 import java.sql.ResultSet
 import java.util.*
 
-@Repository
 open class UserPersonRepository(private val jdbcTemplate: JdbcTemplate) {
 
     private val rowMapper = RowMapper { rs: ResultSet, _: Int ->

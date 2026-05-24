@@ -3,10 +3,8 @@ package no.stunor.origo.eventorapi.data
 import no.stunor.origo.eventorapi.model.Eventor
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.jdbc.core.RowMapper
-import org.springframework.stereotype.Repository
 import java.sql.ResultSet
 
-@Repository
 open class EventorRepository(private val jdbcTemplate: JdbcTemplate) {
 
     private val rowMapper = RowMapper { rs: ResultSet, _: Int ->

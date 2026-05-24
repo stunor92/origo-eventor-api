@@ -5,11 +5,9 @@ import no.stunor.origo.eventorapi.model.person.MembershipKey
 import no.stunor.origo.eventorapi.model.person.MembershipType
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.jdbc.core.RowMapper
-import org.springframework.stereotype.Repository
 import java.sql.ResultSet
 import java.util.*
 
-@Repository
 open class MembershipRepository(
     private val jdbcTemplate: JdbcTemplate,
     private val organisationRepository: OrganisationRepository

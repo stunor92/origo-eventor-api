@@ -12,54 +12,40 @@ import no.stunor.origo.eventorapi.model.person.Person
 import no.stunor.origo.eventorapi.model.person.UserPerson
 import no.stunor.origo.eventorapi.model.person.UserPersonKey
 import no.stunor.origo.eventorapi.services.converter.PersonConverter
-import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.stereotype.Service
-import org.springframework.web.client.HttpClientErrorException
 import java.util.*
 
-@Service
-class PersonService {
-
-    @Autowired
-    private lateinit var eventorRepository: EventorRepository
-
-    @Autowired
-    private lateinit var personRepository: PersonRepository
-
-    @Autowired
-    private lateinit var membershipRepository: MembershipRepository
-
-    @Autowired
-    private lateinit var userPersonRepository: UserPersonRepository
-
-    @Autowired
-    private lateinit var eventorService: EventorService
-
-    @Autowired
-    private lateinit var personConverter: PersonConverter
+class PersonService(
+    private val eventorRepository: EventorRepository,
+    private val personRepository: PersonRepository,
+    private val membershipRepository: MembershipRepository,
+    private val userPersonRepository: UserPersonRepository,
+    private val eventorService: EventorService,
+    private val personConverter: PersonConverter
+) {
 
     fun authenticate(eventorId: String, username: String, password: String, userId: UUID): Person {
-        try {
-            val eventor = eventorRepository.findById(eventorId) ?: throw EventorNotFoundException()
-
-            val eventorPerson = eventorService.authenticatePerson(eventor, username, password)?: throw EventorAuthException()
-
-            val person = personConverter.convertPerson(eventorPerson, eventor)
-            val existingPerson = personRepository.findByEventorIdAndEventorRef(eventorId, person.eventorRef)
-            if (existingPerson != null) {
-                person.id = existingPerson.id
-                membershipRepository.deleteByPersonId(existingPerson.id)
-            }
-
-            val userPerson = UserPerson(id = UserPersonKey(userId = userId, personId = person.id), person = person)
-            person.users.add(userPerson)
-            personRepository.save(person)
-            return person
-        } catch (e: HttpClientErrorException) {
-            if (e.statusCode.value() == 401) {
-                throw EventorAuthException()
-            }
+        val eventor = eventorRepository.findById(eventorId) ?: throw EventorNotFoundException()
+        // authenticatePerson throws EventorAuthException on 401, EventorConnectionException on other errors
+        val eventorPerson = try {
+            eventorService.authenticatePerson(eventor, username, password)
+        } catch (e: EventorAuthException) {
+            throw e
+        } catch (e: EventorConnectionException) {
+            throw e
+        } catch (e: Exception) {
             throw EventorConnectionException()
         }
+
+        val person = personConverter.convertPerson(eventorPerson, eventor)
+        val existingPerson = personRepository.findByEventorIdAndEventorRef(eventorId, person.eventorRef)
+        if (existingPerson != null) {
+            person.id = existingPerson.id
+            membershipRepository.deleteByPersonId(existingPerson.id)
+        }
+
+        val userPerson = UserPerson(id = UserPersonKey(userId = userId, personId = person.id), person = person)
+        person.users.add(userPerson)
+        personRepository.save(person)
+        return person
     }
 }
