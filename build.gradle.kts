@@ -73,7 +73,7 @@ dependencies {
     implementation("com.zaxxer:HikariCP:5.1.0")
     implementation("org.springframework:spring-jdbc:6.2.8")
     implementation("org.springframework:spring-tx:6.2.8")
-    implementation("org.postgresql:postgresql:42.7.5")
+    implementation("org.postgresql:postgresql:42.7.11")
 
     // Caching
     implementation("com.github.ben-manes.caffeine:caffeine:3.2.0")
