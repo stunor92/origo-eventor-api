@@ -1,33 +1,44 @@
 package no.stunor.origo.eventorapi.data
 
 import no.stunor.origo.eventorapi.model.person.User
-import org.springframework.jdbc.core.JdbcTemplate
-import org.springframework.jdbc.core.RowMapper
-import java.sql.ResultSet
+import org.jetbrains.exposed.sql.Database
+import org.jetbrains.exposed.sql.ResultRow
+import org.jetbrains.exposed.sql.Table
+import org.jetbrains.exposed.sql.selectAll
+import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.sql.upsert
+import javax.sql.DataSource
 
-open class UserRepository(private val jdbcTemplate: JdbcTemplate) {
+private object UserAuthTable : Table("auth.users") {
+    val id = text("id")
+    override val primaryKey = PrimaryKey(id)
+}
 
-    private val rowMapper = RowMapper { rs: ResultSet, _: Int ->
-        User(id = rs.getString("id"))
+open class UserRepository(dataSource: DataSource) {
+
+    private val database = Database.connect(dataSource)
+
+    private fun toUser(row: ResultRow): User {
+        return User(id = row[UserAuthTable.id])
     }
-    
+
     open fun findById(id: String): User? {
-        return try {
-            jdbcTemplate.queryForObject(
-                "SELECT * FROM auth.users WHERE id = ?",
-                rowMapper,
-                id
-            )
-        } catch (_: Exception) {
-            null
+        return transaction(database) {
+            UserAuthTable
+                .selectAll()
+                .where { UserAuthTable.id eq id }
+                .limit(1)
+                .map(::toUser)
+                .singleOrNull()
         }
     }
-    
+
     open fun save(user: User): User {
-        jdbcTemplate.update(
-            "INSERT INTO auth.users (id) VALUES (?) ON CONFLICT (id) DO NOTHING",
-            user.id
-        )
+        transaction(database) {
+            UserAuthTable.upsert {
+                it[UserAuthTable.id] = user.id
+            }
+        }
         return user
     }
 }

@@ -2,79 +2,85 @@ package no.stunor.origo.eventorapi.data
 
 import no.stunor.origo.eventorapi.model.organisation.Organisation
 import no.stunor.origo.eventorapi.model.organisation.OrganisationType
-import org.springframework.jdbc.core.JdbcTemplate
-import org.springframework.jdbc.core.RowMapper
-import java.sql.ResultSet
+import org.jetbrains.exposed.sql.Database
+import org.jetbrains.exposed.sql.ResultRow
+import org.jetbrains.exposed.sql.Table
+import org.jetbrains.exposed.sql.and
+import org.jetbrains.exposed.sql.selectAll
+import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.sql.upsert
 import java.util.*
+import javax.sql.DataSource
+
+private object OrganisationTable : Table("organisation") {
+    val id = uuid("id")
+    val eventorId = text("eventor_id")
+    val eventorRef = text("eventor_ref")
+    val name = text("name")
+    val type = text("type")
+    val country = text("country")
+    val regionId = uuid("region_id").nullable()
+}
 
 open class OrganisationRepository(
-    private val jdbcTemplate: JdbcTemplate,
+    dataSource: DataSource,
     private val regionRepository: RegionRepository
 ) {
     
-    private val rowMapper = RowMapper { rs: ResultSet, _: Int ->
-        val regionId = rs.getObject("region_id", UUID::class.java)
+    private val database = Database.connect(dataSource)
+
+    private fun toOrganisation(row: ResultRow): Organisation {
+        val regionId = row[OrganisationTable.regionId]
         val region = regionId?.let { regionRepository.findById(it) }
         
-        Organisation(
-            id = rs.getObject("id", UUID::class.java),
-            eventorId = rs.getString("eventor_id"),
-            eventorRef = rs.getString("eventor_ref"),
-            name = rs.getString("name"),
-            type = OrganisationType.valueOf(rs.getString("type")),
-            country = rs.getString("country"),
+        return Organisation(
+            id = row[OrganisationTable.id],
+            eventorId = row[OrganisationTable.eventorId],
+            eventorRef = row[OrganisationTable.eventorRef],
+            name = row[OrganisationTable.name],
+            type = OrganisationType.valueOf(row[OrganisationTable.type]),
+            country = row[OrganisationTable.country],
             region = region
         )
     }
     
     open fun findByEventorRefAndEventorId(eventorRef: String, eventorId: String): Organisation? {
-        return try {
-            jdbcTemplate.queryForObject(
-                "SELECT * FROM organisation WHERE eventor_ref = ? AND eventor_id = ?",
-                rowMapper,
-                eventorRef, eventorId
-            )
-        } catch (_: Exception) {
-            null
+        return transaction(database) {
+            OrganisationTable
+                .selectAll()
+                .where { (OrganisationTable.eventorRef eq eventorRef) and (OrganisationTable.eventorId eq eventorId) }
+                .limit(1)
+                .map(::toOrganisation)
+                .singleOrNull()
         }
     }
     
     open fun findById(id: UUID): Organisation? {
-        return try {
-            jdbcTemplate.queryForObject(
-                "SELECT * FROM organisation WHERE id = ?",
-                rowMapper,
-                id
-            )
-        } catch (_: Exception) {
-            null
+        return transaction(database) {
+            OrganisationTable
+                .selectAll()
+                .where { OrganisationTable.id eq id }
+                .limit(1)
+                .map(::toOrganisation)
+                .singleOrNull()
         }
     }
     
     open fun save(organisation: Organisation): Organisation {
-        if (organisation.id == null) {
-            organisation.id = UUID.randomUUID()
-            jdbcTemplate.update(
-                "INSERT INTO organisation (id, eventor_id, eventor_ref, name, type, country, region_id) VALUES (?, ?, ?, ?, ?::organisation_type, ?, ?)",
-                organisation.id, organisation.eventorId, organisation.eventorRef, organisation.name,
-                organisation.type.name, organisation.country, organisation.region?.id
-            )
-        } else {
-            jdbcTemplate.update(
-                """
-                INSERT INTO organisation (id, eventor_id, eventor_ref, name, type, country, region_id) 
-                VALUES (?, ?, ?, ?, ?::organisation_type, ?, ?)
-                ON CONFLICT (id) DO UPDATE SET 
-                    eventor_id = EXCLUDED.eventor_id,
-                    eventor_ref = EXCLUDED.eventor_ref,
-                    name = EXCLUDED.name,
-                    type = EXCLUDED.type,
-                    country = EXCLUDED.country,
-                    region_id = EXCLUDED.region_id
-                """,
-                organisation.id, organisation.eventorId, organisation.eventorRef, organisation.name,
-                organisation.type.name, organisation.country, organisation.region?.id
-            )
+        transaction(database) {
+            if (organisation.id == null) {
+                organisation.id = UUID.randomUUID()
+            }
+
+            OrganisationTable.upsert {
+                it[OrganisationTable.id] = organisation.id!!
+                it[OrganisationTable.eventorId] = organisation.eventorId
+                it[OrganisationTable.eventorRef] = organisation.eventorRef
+                it[OrganisationTable.name] = organisation.name
+                it[OrganisationTable.type] = organisation.type.name
+                it[OrganisationTable.country] = organisation.country
+                it[OrganisationTable.regionId] = organisation.region?.id
+            }
         }
         return organisation
     }

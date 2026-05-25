@@ -1,65 +1,70 @@
 package no.stunor.origo.eventorapi.data
 
 import no.stunor.origo.eventorapi.model.Region
-import org.springframework.jdbc.core.JdbcTemplate
-import org.springframework.jdbc.core.RowMapper
-import java.sql.ResultSet
+import org.jetbrains.exposed.sql.Database
+import org.jetbrains.exposed.sql.ResultRow
+import org.jetbrains.exposed.sql.Table
+import org.jetbrains.exposed.sql.and
+import org.jetbrains.exposed.sql.selectAll
+import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.sql.upsert
 import java.util.*
+import javax.sql.DataSource
 
-open class RegionRepository(private val jdbcTemplate: JdbcTemplate) {
+private object RegionTable : Table("region") {
+    val id = uuid("id")
+    val eventorId = text("eventor_id")
+    val eventorRef = text("eventor_ref")
+    val name = text("name")
+}
 
-    private val rowMapper = RowMapper { rs: ResultSet, _: Int ->
-        Region(
-            id = rs.getObject("id", UUID::class.java),
-            eventorId = rs.getString("eventor_id"),
-            eventorRef = rs.getString("eventor_ref"),
-            name = rs.getString("name")
+open class RegionRepository(dataSource: DataSource) {
+
+    private val database = Database.connect(dataSource)
+
+    private fun toRegion(row: ResultRow): Region {
+        return Region(
+            id = row[RegionTable.id],
+            eventorId = row[RegionTable.eventorId],
+            eventorRef = row[RegionTable.eventorRef],
+            name = row[RegionTable.name]
         )
     }
     
     open fun findByEventorRefAndEventorId(eventorRef: String, eventorId: String): Region? {
-        return try {
-            jdbcTemplate.queryForObject(
-                "SELECT * FROM region WHERE eventor_ref = ? AND eventor_id = ?",
-                rowMapper,
-                eventorRef, eventorId
-            )
-        } catch (_: Exception) {
-            null
+        return transaction(database) {
+            RegionTable
+                .selectAll()
+                .where { (RegionTable.eventorRef eq eventorRef) and (RegionTable.eventorId eq eventorId) }
+                .limit(1)
+                .map(::toRegion)
+                .singleOrNull()
         }
     }
     
     open fun findById(id: UUID): Region? {
-        return try {
-            jdbcTemplate.queryForObject(
-                "SELECT * FROM region WHERE id = ?",
-                rowMapper,
-                id
-            )
-        } catch (_: Exception) {
-            null
+        return transaction(database) {
+            RegionTable
+                .selectAll()
+                .where { RegionTable.id eq id }
+                .limit(1)
+                .map(::toRegion)
+                .singleOrNull()
         }
     }
     
     open fun save(region: Region): Region {
-        if (region.id == null) {
-            region.id = UUID.randomUUID()
-            jdbcTemplate.update(
-                "INSERT INTO region (id, eventor_id, eventor_ref, name) VALUES (?, ?, ?, ?)",
-                region.id, region.eventorId, region.eventorRef, region.name
-            )
-        } else {
-            jdbcTemplate.update(
-                """
-                INSERT INTO region (id, eventor_id, eventor_ref, name) 
-                VALUES (?, ?, ?, ?)
-                ON CONFLICT (id) DO UPDATE SET 
-                    eventor_id = EXCLUDED.eventor_id,
-                    eventor_ref = EXCLUDED.eventor_ref,
-                    name = EXCLUDED.name
-                """,
-                region.id, region.eventorId, region.eventorRef, region.name
-            )
+        transaction(database) {
+            if (region.id == null) {
+                region.id = UUID.randomUUID()
+            }
+
+            RegionTable.upsert {
+                it[RegionTable.id] = region.id!!
+                it[RegionTable.eventorId] = region.eventorId
+                it[RegionTable.eventorRef] = region.eventorRef
+                it[RegionTable.name] = region.name
+            }
         }
         return region
     }

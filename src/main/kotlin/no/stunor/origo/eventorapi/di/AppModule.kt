@@ -12,15 +12,10 @@ import no.stunor.origo.eventorapi.services.EventService
 import no.stunor.origo.eventorapi.services.PersonService
 import no.stunor.origo.eventorapi.services.converter.*
 import no.stunor.origo.eventorapi.validation.InputValidator
-import org.iof.eventor.CompetitorCountList
 import org.iof.eventor.EntryList
 import org.iof.eventor.EventClassList
 import org.iof.eventor.EventList
 import org.koin.dsl.module
-import org.springframework.jdbc.core.JdbcTemplate
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate
-import org.springframework.jdbc.datasource.DataSourceTransactionManager
-import org.springframework.transaction.support.TransactionTemplate
 import java.util.concurrent.TimeUnit
 import javax.sql.DataSource
 
@@ -43,23 +38,17 @@ fun appModule(config: ApplicationConfig) = module {
         HikariDataSource(hk)
     }
 
-    // ─── Spring JDBC helpers (used standalone, no Spring container) ────────────
-    single { JdbcTemplate(get()) }
-    single { NamedParameterJdbcTemplate(get<DataSource>()) }
-    single { DataSourceTransactionManager(get()) }
-    single { TransactionTemplate(get<DataSourceTransactionManager>()) }
-
     // ─── Repositories ─────────────────────────────────────────────────────────
-    single { RegionRepository(get()) }
-    single { OrganisationRepository(get(), get()) }
-    single { MembershipRepository(get(), get()) }
-    single { UserPersonRepository(get()) }
-    single { UserRepository(get()) }
-    single { PersonRepository(get(), get(), get(), get()) }
-    single { EventClassRepository(get()) }
-    single { FeeRepository(get()) }
-    single { EventRepository(get(), get()) }
-    single { EventorRepository(get()) }
+    single { RegionRepository(get<DataSource>()) }
+    single { OrganisationRepository(get<DataSource>(), get()) }
+    single { MembershipRepository(get<DataSource>(), get()) }
+    single { UserPersonRepository(get<DataSource>()) }
+    single { UserRepository(get<DataSource>()) }
+    single { PersonRepository(get<DataSource>(), get(), get()) }
+    single { EventClassRepository(get<DataSource>()) }
+    single { FeeRepository(get<DataSource>()) }
+    single { EventRepository(get<DataSource>(), get()) }
+    single { EventorRepository(get<DataSource>()) }
 
     // ─── Caffeine caches ──────────────────────────────────────────────────────
     single<Cache<String, EventList>>(qualifier = org.koin.core.qualifier.named("event-lists")) {
@@ -128,8 +117,7 @@ fun appModule(config: ApplicationConfig) = module {
             organisationConverter = get(),
             entryListConverter   = get(),
             startListConverter   = get(),
-            resultListConverter  = get(),
-            transactionTemplate  = get()
+            resultListConverter  = get()
         )
     }
     single {

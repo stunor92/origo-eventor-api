@@ -2,36 +2,52 @@ package no.stunor.origo.eventorapi.data
 
 import no.stunor.origo.eventorapi.model.person.UserPerson
 import no.stunor.origo.eventorapi.model.person.UserPersonKey
-import org.springframework.jdbc.core.JdbcTemplate
-import org.springframework.jdbc.core.RowMapper
-import java.sql.ResultSet
+import org.jetbrains.exposed.sql.Database
+import org.jetbrains.exposed.sql.ResultRow
+import org.jetbrains.exposed.sql.Table
+import org.jetbrains.exposed.sql.selectAll
+import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.sql.upsert
 import java.util.*
+import javax.sql.DataSource
 
-open class UserPersonRepository(private val jdbcTemplate: JdbcTemplate) {
+private object UserPersonTable : Table("user_person") {
+    val userId = uuid("user_id")
+    val personId = uuid("person_id")
 
-    private val rowMapper = RowMapper { rs: ResultSet, _: Int ->
-        UserPerson(
+    override val primaryKey = PrimaryKey(userId, personId)
+}
+
+open class UserPersonRepository(dataSource: DataSource) {
+
+    private val database = Database.connect(dataSource)
+
+    private fun toUserPerson(row: ResultRow): UserPerson {
+        return UserPerson(
             id = UserPersonKey(
-                userId = rs.getObject("user_id", UUID::class.java),
-                personId = rs.getObject("person_id", UUID::class.java)
+                userId = row[UserPersonTable.userId],
+                personId = row[UserPersonTable.personId]
             ),
             person = null // Avoid circular dependency
         )
     }
 
     open fun findAllByPersonId(personId: UUID): List<UserPerson> {
-        return jdbcTemplate.query(
-            "SELECT * FROM user_person WHERE person_id = ?",
-            rowMapper,
-            personId
-        )
+        return transaction(database) {
+            UserPersonTable
+                .selectAll()
+                .where { UserPersonTable.personId eq personId }
+                .map(::toUserPerson)
+        }
     }
 
     open fun save(userPerson: UserPerson): UserPerson {
-        jdbcTemplate.update(
-            "INSERT INTO user_person (user_id, person_id) VALUES (?, ?) ON CONFLICT DO NOTHING",
-            userPerson.id.userId, userPerson.id.personId
-        )
+        transaction(database) {
+            UserPersonTable.upsert {
+                it[UserPersonTable.userId] = userPerson.id.userId!!
+                it[UserPersonTable.personId] = userPerson.id.personId!!
+            }
+        }
         return userPerson
     }
 

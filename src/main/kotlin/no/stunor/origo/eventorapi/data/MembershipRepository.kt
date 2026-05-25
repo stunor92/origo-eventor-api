@@ -3,56 +3,73 @@ package no.stunor.origo.eventorapi.data
 import no.stunor.origo.eventorapi.model.person.Membership
 import no.stunor.origo.eventorapi.model.person.MembershipKey
 import no.stunor.origo.eventorapi.model.person.MembershipType
-import org.springframework.jdbc.core.JdbcTemplate
-import org.springframework.jdbc.core.RowMapper
-import java.sql.ResultSet
+import org.jetbrains.exposed.sql.Database
+import org.jetbrains.exposed.sql.ResultRow
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.Table
+import org.jetbrains.exposed.sql.deleteWhere
+import org.jetbrains.exposed.sql.selectAll
+import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.sql.upsert
 import java.util.*
+import javax.sql.DataSource
+
+private object MembershipTable : Table("membership") {
+    val personId = uuid("person_id")
+    val organisationId = uuid("organisation_id")
+    val type = text("type")
+
+    override val primaryKey = PrimaryKey(personId, organisationId)
+}
 
 open class MembershipRepository(
-    private val jdbcTemplate: JdbcTemplate,
+    dataSource: DataSource,
     private val organisationRepository: OrganisationRepository
 ) {
     
-    private val rowMapper = RowMapper { rs: ResultSet, _: Int ->
-        val personId = rs.getObject("person_id", UUID::class.java)
-        val organisationId = rs.getObject("organisation_id", UUID::class.java)
-        val organisation = organisationId?.let { organisationRepository.findById(it) }
-        
-        Membership(
+    private val database = Database.connect(dataSource)
+
+    private fun toMembership(row: ResultRow): Membership {
+        val personId = row[MembershipTable.personId]
+        val organisationId = row[MembershipTable.organisationId]
+        val organisation = organisationRepository.findById(organisationId)
+
+        return Membership(
             id = MembershipKey(personId = personId, organisationId = organisationId),
             person = null, // Avoid circular dependency
             organisation = organisation,
-            type = MembershipType.valueOf(rs.getString("type"))
+            type = MembershipType.valueOf(row[MembershipTable.type])
         )
     }
     
     open fun findAllByPersonId(personId: UUID?): List<Membership> {
         if (personId == null) return emptyList()
-        return jdbcTemplate.query(
-            "SELECT * FROM membership WHERE person_id = ?",
-            rowMapper,
-            personId
-        )
+        return transaction(database) {
+            MembershipTable
+                .selectAll()
+                .where { MembershipTable.personId eq personId }
+                .map(::toMembership)
+        }
     }
     
     open fun getOrganisationById(organisationId: UUID) = organisationRepository.findById(organisationId)
 
     open fun save(membership: Membership): Membership {
-        jdbcTemplate.update(
-            """
-            INSERT INTO membership (person_id, organisation_id, type) 
-            VALUES (?, ?, ?::membership_type)
-            ON CONFLICT (person_id, organisation_id) DO UPDATE SET 
-                type = EXCLUDED.type
-            """,
-            membership.id.personId, membership.id.organisationId, membership.type.name
-        )
+        transaction(database) {
+            MembershipTable.upsert {
+                it[MembershipTable.personId] = membership.id.personId!!
+                it[MembershipTable.organisationId] = membership.id.organisationId!!
+                it[MembershipTable.type] = membership.type.name
+            }
+        }
         return membership
     }
 
     open fun deleteByPersonId(personId: UUID?) {
         if (personId != null) {
-            jdbcTemplate.update("DELETE FROM membership WHERE person_id = ?", personId)
+            transaction(database) {
+                MembershipTable.deleteWhere { MembershipTable.personId eq personId }
+            }
         }
     }
 }

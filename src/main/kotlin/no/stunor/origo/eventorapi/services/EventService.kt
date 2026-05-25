@@ -17,7 +17,6 @@ import no.stunor.origo.eventorapi.model.event.entry.PersonEntry
 import no.stunor.origo.eventorapi.model.event.entry.TeamEntry
 import no.stunor.origo.eventorapi.services.converter.*
 import org.slf4j.LoggerFactory
-import org.springframework.transaction.support.TransactionTemplate
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.SynchronousQueue
 import java.util.concurrent.ThreadPoolExecutor
@@ -33,8 +32,7 @@ class EventService(
     private val organisationConverter: OrganisationConverter,
     private val entryListConverter: EntryListConverter,
     private val startListConverter: StartListConverter,
-    private val resultListConverter: ResultListConverter,
-    private val transactionTemplate: TransactionTemplate
+    private val resultListConverter: ResultListConverter
 ) {
     private val log = LoggerFactory.getLogger(this.javaClass)
 
@@ -97,50 +95,48 @@ class EventService(
             eventor = eventor
         )
 
-        return transactionTemplate.execute {
-            val event = eventRepository.save(updatedOrNewEvent)
-            val savedClasses = eventClassRepository.findByEventId(event.id)
-            val savedClassesByRef = savedClasses.associateBy { it.eventorRef }
+        val event = eventRepository.save(updatedOrNewEvent)
+        val savedClasses = eventClassRepository.findByEventId(event.id)
+        val savedClassesByRef = savedClasses.associateBy { it.eventorRef }
 
-            val entryFees = eventorService.getEventEntryFees(eventor, eventorRef)
-            val convertedFees: List<Fee> = FeeConverter.convertEntryFees(entryFees, event, eventClassList?.eventClass ?: listOf())
+        val entryFees = eventorService.getEventEntryFees(eventor, eventorRef)
+        val convertedFees: List<Fee> = FeeConverter.convertEntryFees(entryFees, event, eventClassList?.eventClass ?: listOf())
 
-            convertedFees.forEach { fee ->
-                fee.classes = fee.classes.mapNotNull { feeClass ->
-                    savedClassesByRef[feeClass.eventorRef]
-                }.toMutableList()
+        convertedFees.forEach { fee ->
+            fee.classes = fee.classes.mapNotNull { feeClass ->
+                savedClassesByRef[feeClass.eventorRef]
+            }.toMutableList()
+        }
+
+        val existingFees = feeRepository.findAllByEventId(event.id)
+        val existingByRef = existingFees.associateBy { it.eventorRef }
+
+        val mergedFees = convertedFees.map { fee ->
+            val match = existingByRef[fee.eventorRef]
+            if (match != null) {
+                match.name = fee.name
+                match.currency = fee.currency
+                match.amount = fee.amount
+                match.externalFee = fee.externalFee
+                match.percentageSurcharge = fee.percentageSurcharge
+                match.validFrom = fee.validFrom
+                match.validTo = fee.validTo
+                match.fromBirthYear = fee.fromBirthYear
+                match.toBirthYear = fee.toBirthYear
+                match.taxIncluded = fee.taxIncluded
+                match.classes.clear()
+                match.classes.addAll(fee.classes)
+                match
+            } else {
+                fee
             }
+        }
 
-            val existingFees = feeRepository.findAllByEventId(event.id)
-            val existingByRef = existingFees.associateBy { it.eventorRef }
-
-            val mergedFees = convertedFees.map { fee ->
-                val match = existingByRef[fee.eventorRef]
-                if (match != null) {
-                    match.name = fee.name
-                    match.currency = fee.currency
-                    match.amount = fee.amount
-                    match.externalFee = fee.externalFee
-                    match.percentageSurcharge = fee.percentageSurcharge
-                    match.validFrom = fee.validFrom
-                    match.validTo = fee.validTo
-                    match.fromBirthYear = fee.fromBirthYear
-                    match.toBirthYear = fee.toBirthYear
-                    match.taxIncluded = fee.taxIncluded
-                    match.classes.clear()
-                    match.classes.addAll(fee.classes)
-                    match
-                } else {
-                    fee
-                }
-            }
-
-            val incomingRefs = convertedFees.map { it.eventorRef }.toSet()
-            val obsolete = existingFees.filter { it.eventorRef !in incomingRefs }
-            if (obsolete.isNotEmpty()) feeRepository.deleteAll(obsolete)
-            feeRepository.saveAll(mergedFees)
-            event
-        }!!
+        val incomingRefs = convertedFees.map { it.eventorRef }.toSet()
+        val obsolete = existingFees.filter { it.eventorRef !in incomingRefs }
+        if (obsolete.isNotEmpty()) feeRepository.deleteAll(obsolete)
+        feeRepository.saveAll(mergedFees)
+        return event
     }
 
     // ========================================

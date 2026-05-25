@@ -20,8 +20,6 @@ import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import org.springframework.transaction.support.TransactionCallback
-import org.springframework.transaction.support.TransactionTemplate
 import java.io.File
 import java.util.*
 
@@ -36,7 +34,6 @@ class EventServiceTest {
     private lateinit var entryListConverter: EntryListConverter
     private lateinit var startListConverter: StartListConverter
     private lateinit var resultListConverter: ResultListConverter
-    private lateinit var transactionTemplate: TransactionTemplate
     private lateinit var eventService: EventService
 
     // Load test data
@@ -64,12 +61,6 @@ class EventServiceTest {
         entryListConverter   = mockk()
         startListConverter   = mockk()
         resultListConverter  = mockk()
-        transactionTemplate  = mockk()
-
-        // Make transactionTemplate.execute() call the block directly
-        every { transactionTemplate.execute(any<TransactionCallback<*>>()) } answers {
-            firstArg<TransactionCallback<*>>().doInTransaction(mockk())
-        }
 
         eventService = EventService(
             eventorRepository    = eventorRepository,
@@ -81,8 +72,7 @@ class EventServiceTest {
             organisationConverter = organisationConverter,
             entryListConverter   = entryListConverter,
             startListConverter   = startListConverter,
-            resultListConverter  = resultListConverter,
-            transactionTemplate  = transactionTemplate
+            resultListConverter  = resultListConverter
         )
     }
 

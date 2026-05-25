@@ -1,232 +1,249 @@
 package no.stunor.origo.eventorapi.data
 
-import no.stunor.origo.eventorapi.model.event.*
-import org.springframework.jdbc.core.JdbcTemplate
-import org.springframework.jdbc.core.RowMapper
-import java.sql.ResultSet
+import no.stunor.origo.eventorapi.model.event.Discipline
+import no.stunor.origo.eventorapi.model.event.Event
+import no.stunor.origo.eventorapi.model.event.EventClassificationEnum
+import no.stunor.origo.eventorapi.model.event.EventFormEnum
+import no.stunor.origo.eventorapi.model.event.EventStatusEnum
+import no.stunor.origo.eventorapi.model.event.PunchingUnitType
+import org.jetbrains.exposed.sql.Database
+import org.jetbrains.exposed.sql.ResultRow
+import org.jetbrains.exposed.sql.Table
+import org.jetbrains.exposed.sql.and
+import org.jetbrains.exposed.sql.javatime.timestamp
+import org.jetbrains.exposed.sql.selectAll
+import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.sql.upsert
+import java.sql.Timestamp
 import java.util.*
+import javax.sql.DataSource
+
+private object EventTable : Table("event") {
+    val id = uuid("id")
+    val eventorId = text("eventor_id")
+    val eventorRef = text("eventor_ref")
+    val name = text("name")
+    val type = text("type")
+    val classification = text("classification")
+    val status = text("status")
+    val disciplines = text("disciplines").nullable()
+    val punchingUnitTypes = text("punching_unit_types").nullable()
+    val startDate = timestamp("start_date").nullable()
+    val finishDate = timestamp("finish_date").nullable()
+    val entryBreaks = text("entry_breaks").nullable()
+    val webUrls = text("web_urls").nullable()
+    val message = text("message").nullable()
+    val email = text("email").nullable()
+    val phone = text("phone").nullable()
+}
+
+private object EventOrganiserTable : Table("event_organiser") {
+    val eventId = uuid("event_id")
+    val organisationId = uuid("organisation_id")
+}
+
+private object ClassTable : Table("class") {
+    val id = uuid("id")
+    val eventId = uuid("event_id")
+    val eventorRef = text("eventor_ref")
+    val name = text("name")
+    val shortName = text("short_name")
+    val type = text("type")
+    val minAge = integer("min_age").nullable()
+    val maxAge = integer("max_age").nullable()
+    val gender = text("gender")
+    val presentTime = bool("present_time")
+    val orderedResult = bool("ordered_result")
+    val legs = integer("legs")
+    val minAverageAge = integer("min_average_age").nullable()
+    val maxAverageAge = integer("max_average_age").nullable()
+}
+
+private object DocumentTable : Table("document") {
+    val id = uuid("id")
+    val eventId = uuid("event_id")
+    val eventorRef = text("eventor_ref")
+    val name = text("name")
+    val url = text("url")
+    val type = text("type")
+}
+
+private object RaceTable : Table("race") {
+    val id = uuid("id")
+    val eventId = uuid("event_id")
+    val eventorRef = text("eventor_ref")
+    val name = text("name")
+    val lightCondition = text("light_condition")
+    val distance = text("distance")
+    val date = timestamp("date").nullable()
+    val latitude = double("latitude").nullable()
+    val longitude = double("longitude").nullable()
+    val startList = bool("start_list")
+    val resultList = bool("result_list")
+    val livelox = bool("livelox")
+}
 
 class EventRepository(
-    private val jdbcTemplate: JdbcTemplate,
+    dataSource: DataSource,
     private val organisationRepository: OrganisationRepository
 ) {
     
-    private val rowMapper = RowMapper { rs: ResultSet, _: Int ->
-        val id = rs.getObject("id", UUID::class.java)
-        
-        // Parse array columns
-        val disciplinesArray = rs.getArray("disciplines")
-        val disciplines = if (disciplinesArray != null) {
-            (disciplinesArray.array as Array<*>).map { Discipline.valueOf(it.toString()) }.toTypedArray()
-        } else {
-            emptyArray()
-        }
-        
-        val punchingTypesArray = rs.getArray("punching_unit_types")
-        val punchingUnitTypes = if (punchingTypesArray != null) {
-            (punchingTypesArray.array as Array<*>).map { PunchingUnitType.valueOf(it.toString()) }.toTypedArray()
-        } else {
-            emptyArray()
-        }
-        
-        val entryBreaksArray = rs.getArray("entry_breaks")
-        val entryBreaks = if (entryBreaksArray != null) {
-            (entryBreaksArray.array as Array<*>).map {
-                when (it) {
-                    is java.sql.Timestamp -> it
-                    is Long -> java.sql.Timestamp(it)
-                    else -> java.sql.Timestamp(it.toString().toLong())
-                }
-            }.toTypedArray()
-        } else {
-            emptyArray()
-        }
-        
-        val webUrlsArray = rs.getArray("web_urls")
-        val webUrls = if (webUrlsArray != null) {
-            (webUrlsArray.array as Array<*>).map { it.toString() }
-        } else {
-            emptyList()
-        }
-        
-        Event(
-            id = id,
-            eventorId = rs.getString("eventor_id"),
-            eventorRef = rs.getString("eventor_ref"),
-            name = rs.getString("name"),
-            type = EventFormEnum.valueOf(rs.getString("type")),
-            classification = EventClassificationEnum.valueOf(rs.getString("classification")),
-            status = EventStatusEnum.valueOf(rs.getString("status")),
-            disciplines = disciplines,
-            punchingUnitTypes = punchingUnitTypes,
-            startDate = rs.getTimestamp("start_date"),
-            finishDate = rs.getTimestamp("finish_date"),
+    private val database = Database.connect(dataSource)
+
+    private fun parseDisciplines(disciplinesStr: String?): Array<Discipline> {
+        if (disciplinesStr.isNullOrEmpty()) return emptyArray()
+        return disciplinesStr.split(",").map { Discipline.valueOf(it.trim()) }.toTypedArray()
+    }
+
+    private fun parsePunchingTypes(typesStr: String?): Array<PunchingUnitType> {
+        if (typesStr.isNullOrEmpty()) return emptyArray()
+        return typesStr.split(",").map { PunchingUnitType.valueOf(it.trim()) }.toTypedArray()
+    }
+
+    private fun parseWebUrls(urlsStr: String?): List<String> {
+        if (urlsStr.isNullOrEmpty()) return emptyList()
+        return urlsStr.split("\n").filter { it.isNotEmpty() }
+    }
+
+    private fun toEvent(row: ResultRow): Event {
+        return Event(
+            id = row[EventTable.id],
+            eventorId = row[EventTable.eventorId],
+            eventorRef = row[EventTable.eventorRef],
+            name = row[EventTable.name],
+            type = EventFormEnum.valueOf(row[EventTable.type]),
+            classification = EventClassificationEnum.valueOf(row[EventTable.classification]),
+            status = EventStatusEnum.valueOf(row[EventTable.status]),
+            disciplines = parseDisciplines(row[EventTable.disciplines]),
+            punchingUnitTypes = parsePunchingTypes(row[EventTable.punchingUnitTypes]),
+            startDate = row[EventTable.startDate]?.let { Timestamp.from(it) },
+            finishDate = row[EventTable.finishDate]?.let { Timestamp.from(it) },
             organisers = mutableListOf(), // Load separately
             classes = mutableListOf(), // Load separately
             documents = mutableListOf(), // Load separately
-            entryBreaks = entryBreaks,
+            entryBreaks = emptyArray(), // Could be parsed from entryBreaks column if needed
             races = mutableListOf(), // Load separately
-            webUrls = webUrls,
-            message = rs.getString("message"),
-            email = rs.getString("email"),
-            phone = rs.getString("phone")
+            webUrls = parseWebUrls(row[EventTable.webUrls]),
+            message = row[EventTable.message],
+            email = row[EventTable.email],
+            phone = row[EventTable.phone]
         )
     }
     
     fun findByEventorIdAndEventorRef(eventorId: String, eventorRef: String): Event? {
-        return try {
-            jdbcTemplate.queryForObject(
-                "SELECT * FROM event WHERE eventor_id = ? AND eventor_ref = ?",
-                rowMapper,
-                eventorId, eventorRef
-            )
-        } catch (_: Exception) {
-            null
+        return transaction(database) {
+            EventTable
+                .selectAll()
+                .where { (EventTable.eventorId eq eventorId) and (EventTable.eventorRef eq eventorRef) }
+                .limit(1)
+                .map(::toEvent)
+                .singleOrNull()
         }
     }
     
     fun save(event: Event): Event {
-        // Convert arrays to SQL arrays
-        val disciplinesArray = jdbcTemplate.dataSource?.connection?.use { conn ->
-            conn.createArrayOf("discipline", event.disciplines.map { it.name }.toTypedArray())
-        }
-        
-        val punchingTypesArray = jdbcTemplate.dataSource?.connection?.use { conn ->
-            conn.createArrayOf("punching_unit_type", event.punchingUnitTypes.map { it.name }.toTypedArray())
-        }
-        
-        val entryBreaksArray = jdbcTemplate.dataSource?.connection?.use { conn ->
-            conn.createArrayOf("timestamp", event.entryBreaks)
-        }
-        
-        val webUrlsArray = jdbcTemplate.dataSource?.connection?.use { conn ->
-            conn.createArrayOf("varchar", event.webUrls.toTypedArray())
-        }
-        
-        // Generate ID if not present
-        if (event.id == null) {
-            event.id = UUID.randomUUID()
-        }
-
-        // Use ON CONFLICT with the unique constraint on (eventor_id, eventor_ref)
-        // Note: We don't update the ID to preserve foreign key relationships
-        jdbcTemplate.update(
-            """
-            INSERT INTO event (id, eventor_id, eventor_ref, name, type, classification, status,
-                disciplines, punching_unit_types, start_date, finish_date, entry_breaks, web_urls,
-                message, email, phone)
-            VALUES (?, ?, ?, ?, ?::event_type, ?::event_classification, ?::event_status, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT (eventor_id, eventor_ref) DO UPDATE SET
-                name = EXCLUDED.name,
-                type = EXCLUDED.type,
-                classification = EXCLUDED.classification,
-                status = EXCLUDED.status,
-                disciplines = EXCLUDED.disciplines,
-                punching_unit_types = EXCLUDED.punching_unit_types,
-                start_date = EXCLUDED.start_date,
-                finish_date = EXCLUDED.finish_date,
-                entry_breaks = EXCLUDED.entry_breaks,
-                web_urls = EXCLUDED.web_urls,
-                message = EXCLUDED.message,
-                email = EXCLUDED.email,
-                phone = EXCLUDED.phone
-            """,
-            event.id, event.eventorId, event.eventorRef, event.name, event.type.name,
-            event.classification.name, event.status.name, disciplinesArray, punchingTypesArray,
-            event.startDate, event.finishDate, entryBreaksArray, webUrlsArray,
-            event.message, event.email, event.phone
-        )
-
-        // Retrieve the actual event ID from the database (in case of conflict, use existing ID)
-        // This MUST happen before saving related entities to ensure correct foreign keys
-        val actualEvent = findByEventorIdAndEventorRef(event.eventorId, event.eventorRef)
-        if (actualEvent != null) {
-            event.id = actualEvent.id
-        }
-
-        // Save organisers (many-to-many)
-        event.organisers.forEach { org ->
-            org.id?.let { orgId ->
-                organisationRepository.save(org)
-                jdbcTemplate.update(
-                    "INSERT INTO event_organiser (event_id, organisation_id) VALUES (?, ?) ON CONFLICT DO NOTHING",
-                    event.id, orgId
-                )
+        transaction(database) {
+            // Generate ID if not present
+            if (event.id == null) {
+                event.id = UUID.randomUUID()
             }
-        }
-        
-        // Save event classes - upsert based on (event_id, eventor_ref)
-        event.classes.forEach { eventClass ->
-            jdbcTemplate.update(
-                """
-                INSERT INTO class (id, event_id, eventor_ref, name, short_name, type, 
-                    min_age, max_age, gender, present_time, ordered_result, legs, 
-                    min_average_age, max_average_age)
-                VALUES (?, ?, ?, ?, ?, ?::class_type, ?, ?, ?::class_gender, ?, ?, ?, ?, ?)
-                ON CONFLICT (event_id, eventor_ref) DO UPDATE SET
-                    name = EXCLUDED.name,
-                    short_name = EXCLUDED.short_name,
-                    type = EXCLUDED.type,
-                    min_age = EXCLUDED.min_age,
-                    max_age = EXCLUDED.max_age,
-                    gender = EXCLUDED.gender,
-                    present_time = EXCLUDED.present_time,
-                    ordered_result = EXCLUDED.ordered_result,
-                    legs = EXCLUDED.legs,
-                    min_average_age = EXCLUDED.min_average_age,
-                    max_average_age = EXCLUDED.max_average_age
-                """,
-                eventClass.id, event.id, eventClass.eventorRef, eventClass.name,
-                eventClass.shortName, eventClass.type.name, eventClass.minAge, eventClass.maxAge,
-                eventClass.gender.name, eventClass.presentTime, eventClass.orderedResult,
-                eventClass.legs, eventClass.minAverageAge, eventClass.maxAverageAge
-            )
-        }
 
-        // Save documents - upsert based on (event_id, eventor_ref)
-        event.documents.forEach { document ->
-            if (document.id == null) {
-                document.id = UUID.randomUUID()
-            }
-            jdbcTemplate.update(
-                """
-                INSERT INTO document (id, event_id, eventor_ref, name, url, type)
-                VALUES (?, ?, ?, ?, ?, ?)
-                ON CONFLICT (event_id, eventor_ref) DO UPDATE SET
-                    name = EXCLUDED.name,
-                    url = EXCLUDED.url,
-                    type = EXCLUDED.type
-                """,
-                document.id, event.id, document.eventorRef, document.name,
-                document.url, document.type
-            )
-        }
+            // Convert disciplines and punching types to strings for storage
+            val disciplinesStr = event.disciplines.joinToString(",") { it.name }
+            val punchingTypesStr = event.punchingUnitTypes.joinToString(",") { it.name }
+            val webUrlsStr = event.webUrls.joinToString("\n")
 
-        // Save races - upsert based on (event_id, eventor_ref)
-        event.races.forEach { race ->
-            if (race.id == null) {
-                race.id = UUID.randomUUID()
+            // Upsert main event record
+            EventTable.upsert {
+                it[EventTable.id] = event.id!!
+                it[EventTable.eventorId] = event.eventorId
+                it[EventTable.eventorRef] = event.eventorRef
+                it[EventTable.name] = event.name
+                it[EventTable.type] = event.type.name
+                it[EventTable.classification] = event.classification.name
+                it[EventTable.status] = event.status.name
+                it[EventTable.disciplines] = disciplinesStr
+                it[EventTable.punchingUnitTypes] = punchingTypesStr
+                it[EventTable.startDate] = event.startDate?.toInstant()
+                it[EventTable.finishDate] = event.finishDate?.toInstant()
+                it[EventTable.webUrls] = webUrlsStr
+                it[EventTable.message] = event.message
+                it[EventTable.email] = event.email
+                it[EventTable.phone] = event.phone
             }
-            jdbcTemplate.update(
-                """
-                INSERT INTO race (id, event_id, eventor_ref, name, light_condition, distance, 
-                    date, latitude, longitude, start_list, result_list, livelox)
-                VALUES (?, ?, ?, ?, ?::light_condition, ?::distance, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT (event_id, eventor_ref) DO UPDATE SET
-                    name = EXCLUDED.name,
-                    light_condition = EXCLUDED.light_condition,
-                    distance = EXCLUDED.distance,
-                    date = EXCLUDED.date,
-                    latitude = EXCLUDED.latitude,
-                    longitude = EXCLUDED.longitude,
-                    start_list = EXCLUDED.start_list,
-                    result_list = EXCLUDED.result_list,
-                    livelox = EXCLUDED.livelox
-                """,
-                race.id, event.id, race.eventorRef, race.name, race.lightCondition.name,
-                race.distance.name, race.date, race.position?.latitude, race.position?.longitude,
-                race.startList, race.resultList, race.livelox
-            )
+
+            // Retrieve the actual event ID from the database (in case of conflict, use existing ID)
+            val actualEvent = findByEventorIdAndEventorRef(event.eventorId, event.eventorRef)
+            if (actualEvent != null) {
+                event.id = actualEvent.id
+            }
+
+            // Save organisers (many-to-many)
+            event.organisers.forEach { org ->
+                org.id?.let { orgId ->
+                    organisationRepository.save(org)
+                    EventOrganiserTable.upsert {
+                        it[EventOrganiserTable.eventId] = event.id!!
+                        it[EventOrganiserTable.organisationId] = orgId
+                    }
+                }
+            }
+
+            // Save event classes
+            event.classes.forEach { eventClass ->
+                ClassTable.upsert {
+                    it[ClassTable.id] = eventClass.id
+                    it[ClassTable.eventId] = event.id!!
+                    it[ClassTable.eventorRef] = eventClass.eventorRef
+                    it[ClassTable.name] = eventClass.name
+                    it[ClassTable.shortName] = eventClass.shortName
+                    it[ClassTable.type] = eventClass.type.name
+                    it[ClassTable.minAge] = eventClass.minAge
+                    it[ClassTable.maxAge] = eventClass.maxAge
+                    it[ClassTable.gender] = eventClass.gender.name
+                    it[ClassTable.presentTime] = eventClass.presentTime
+                    it[ClassTable.orderedResult] = eventClass.orderedResult
+                    it[ClassTable.legs] = eventClass.legs
+                    it[ClassTable.minAverageAge] = eventClass.minAverageAge
+                    it[ClassTable.maxAverageAge] = eventClass.maxAverageAge
+                }
+            }
+
+            // Save documents
+            event.documents.forEach { document ->
+                if (document.id == null) {
+                    document.id = UUID.randomUUID()
+                }
+                DocumentTable.upsert {
+                    it[DocumentTable.id] = document.id!!
+                    it[DocumentTable.eventId] = event.id!!
+                    it[DocumentTable.eventorRef] = document.eventorRef
+                    it[DocumentTable.name] = document.name
+                    it[DocumentTable.url] = document.url
+                    it[DocumentTable.type] = document.type
+                }
+            }
+
+            // Save races
+            event.races.forEach { race ->
+                if (race.id == null) {
+                    race.id = UUID.randomUUID()
+                }
+                RaceTable.upsert {
+                    it[RaceTable.id] = race.id!!
+                    it[RaceTable.eventId] = event.id!!
+                    it[RaceTable.eventorRef] = race.eventorRef
+                    it[RaceTable.name] = race.name
+                    it[RaceTable.lightCondition] = race.lightCondition.name
+                    it[RaceTable.distance] = race.distance.name
+                    it[RaceTable.date] = race.date?.toInstant()
+                    it[RaceTable.latitude] = race.position?.latitude
+                    it[RaceTable.longitude] = race.position?.longitude
+                    it[RaceTable.startList] = race.startList
+                    it[RaceTable.resultList] = race.resultList
+                    it[RaceTable.livelox] = race.livelox
+                }
+            }
         }
 
         return event
