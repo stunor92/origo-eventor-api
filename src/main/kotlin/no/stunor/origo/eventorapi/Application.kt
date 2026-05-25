@@ -14,7 +14,7 @@ fun Application.module() {
         slf4jLogger()
         modules(appModule(environment.config))
     }
-    configureDatabase(environment.config)
+    configureDatabase()
     configureSerialization()
     configureAuth(environment.config)
     configureStatusPages()

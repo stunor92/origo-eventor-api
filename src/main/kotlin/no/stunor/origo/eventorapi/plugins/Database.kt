@@ -1,7 +1,6 @@
 package no.stunor.origo.eventorapi.plugins
 
 import io.ktor.server.application.*
-import io.ktor.server.config.*
 import com.zaxxer.hikari.HikariDataSource
 import no.stunor.origo.eventorapi.services.CalendarService
 import no.stunor.origo.eventorapi.services.EventService
@@ -11,7 +10,7 @@ import javax.sql.DataSource
 
 private val log = LoggerFactory.getLogger("DatabasePlugin")
 
-fun Application.configureDatabase(config: ApplicationConfig) {
+fun Application.configureDatabase() {
     // Eagerly resolve the DataSource so connection pool is created on startup
     val dataSource: DataSource by inject()
     log.info("Database connection pool initialized: ${(dataSource as? HikariDataSource)?.jdbcUrl}")
