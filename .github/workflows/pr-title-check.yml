@@ -41,9 +41,9 @@ jobs:
           #   core
           # Require a scope to be provided (set to true to make scope mandatory)
           requireScope: false
-          # Optionally require subject to start with lowercase
-          subjectPattern: ^[a-z].+$
+          # Optionally require subject to start with a letter
+          subjectPattern: ^[A-Za-z].+$
           subjectPatternError: |
             The subject "{subject}" found in the pull request title "{title}"
             didn't match the configured pattern. Please ensure that the subject
-            starts with a lowercase letter.
+            starts with a letter.
