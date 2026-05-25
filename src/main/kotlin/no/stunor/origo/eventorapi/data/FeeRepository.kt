@@ -26,12 +26,12 @@ private object FeeTable : Table("fee") {
     val fromBirthYear = integer("from_birth_year").nullable()
     val toBirthYear = integer("to_birth_year").nullable()
     val taxIncluded = bool("tax_included")
-    val eventId = uuid("event_id").nullable()
+    val eventId = uuid("event_id").references(EventTable.id).nullable()
 }
 
 private object ClassFeeTable : Table("class_fee") {
-    val feeId = uuid("fee_id")
-    val classId = uuid("class_id")
+    val feeId = uuid("fee_id").references(FeeTable.id)
+    val classId = uuid("class_id").references(ClassTable.id)
 }
 
 class FeeRepository(dataSource: DataSource) {

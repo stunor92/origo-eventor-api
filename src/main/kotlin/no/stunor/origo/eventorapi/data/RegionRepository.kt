@@ -11,7 +11,7 @@ import org.jetbrains.exposed.sql.upsert
 import java.util.*
 import javax.sql.DataSource
 
-private object RegionTable : Table("region") {
+internal object RegionTable : Table("region") {
     val id = uuid("id")
     val eventorId = text("eventor_id")
     val eventorRef = text("eventor_ref")

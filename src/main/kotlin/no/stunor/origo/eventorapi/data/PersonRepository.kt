@@ -12,7 +12,7 @@ import org.jetbrains.exposed.sql.upsert
 import java.util.UUID
 import javax.sql.DataSource
 
-private object PersonTable : Table("person") {
+internal object PersonTable : Table("person") {
     val id = uuid("id")
     val eventorId = text("eventor_id")
     val eventorRef = text("eventor_ref")
@@ -26,16 +26,6 @@ private object PersonTable : Table("person") {
     val lastUpdated = timestamp("last_updated")
 }
 
-private object UserPersonTable2 : Table("user_person") {
-    val userId = uuid("user_id")
-    val personId = uuid("person_id")
-}
-
-private object MembershipTable2 : Table("membership") {
-    val personId = uuid("person_id")
-    val organisationId = uuid("organisation_id")
-    val type = text("type")
-}
 
 open class PersonRepository(
     dataSource: DataSource,
@@ -96,19 +86,19 @@ open class PersonRepository(
         if (personIds.isEmpty()) return
 
         transaction(database) {
-            val allMemberships = MembershipTable2
+            val allMemberships = MembershipTable
                 .selectAll()
-                .where { MembershipTable2.personId inList personIds }
+                .where { MembershipTable.personId inList personIds }
                 .map { row ->
-                    val personId = row[MembershipTable2.personId]
-                    val organisationId = row[MembershipTable2.organisationId]
+                    val personId = row[MembershipTable.personId]
+                    val organisationId = row[MembershipTable.organisationId]
                     val organisation = membershipRepository.getOrganisationById(organisationId)
 
                     Membership(
                         id = MembershipKey(personId = personId, organisationId = organisationId),
                         person = null,
                         organisation = organisation,
-                        type = MembershipType.valueOf(row[MembershipTable2.type])
+                        type = MembershipType.valueOf(row[MembershipTable.type])
                     )
                 }
 
@@ -132,14 +122,14 @@ open class PersonRepository(
         if (personIds.isEmpty()) return
 
         transaction(database) {
-            val allUserPersons = UserPersonTable2
+            val allUserPersons = UserPersonTable
                 .selectAll()
-                .where { UserPersonTable2.personId inList personIds }
+                .where { UserPersonTable.personId inList personIds }
                 .map { row ->
                     UserPerson(
                         id = UserPersonKey(
-                            userId = row[UserPersonTable2.userId],
-                            personId = row[UserPersonTable2.personId]
+                            userId = row[UserPersonTable.userId],
+                            personId = row[UserPersonTable.personId]
                         ),
                         person = null
                     )
@@ -168,9 +158,9 @@ open class PersonRepository(
     
     open fun findAllByUsers(userId: UUID): List<Person> {
         val persons = transaction(database) {
-            PersonTable.innerJoin(UserPersonTable2)
+            PersonTable.innerJoin(UserPersonTable)
                 .selectAll()
-                .where { UserPersonTable2.userId eq userId }
+                .where { UserPersonTable.userId eq userId }
                 .map(::toPersonSimple)
         }
 
@@ -183,9 +173,9 @@ open class PersonRepository(
     
     open fun findAllByUsersAndEventorId(userId: UUID, eventorId: String): List<Person> {
         val persons = transaction(database) {
-            PersonTable.innerJoin(UserPersonTable2)
+            PersonTable.innerJoin(UserPersonTable)
                 .selectAll()
-                .where { (UserPersonTable2.userId eq userId) and (PersonTable.eventorId eq eventorId) }
+                .where { (UserPersonTable.userId eq userId) and (PersonTable.eventorId eq eventorId) }
                 .map(::toPersonSimple)
         }
 

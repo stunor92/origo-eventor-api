@@ -18,7 +18,7 @@ import java.sql.Timestamp
 import java.util.*
 import javax.sql.DataSource
 
-private object EventTable : Table("event") {
+internal object EventTable : Table("event") {
     val id = uuid("id")
     val eventorId = text("eventor_id")
     val eventorRef = text("eventor_ref")
@@ -38,13 +38,13 @@ private object EventTable : Table("event") {
 }
 
 private object EventOrganiserTable : Table("event_organiser") {
-    val eventId = uuid("event_id")
-    val organisationId = uuid("organisation_id")
+    val eventId = uuid("event_id").references(EventTable.id)
+    val organisationId = uuid("organisation_id").references(OrganisationTable.id)
 }
 
-private object ClassTable : Table("class") {
+internal object ClassTable : Table("class") {
     val id = uuid("id")
-    val eventId = uuid("event_id")
+    val eventId = uuid("event_id").references(EventTable.id)
     val eventorRef = text("eventor_ref")
     val name = text("name")
     val shortName = text("short_name")
@@ -61,7 +61,7 @@ private object ClassTable : Table("class") {
 
 private object DocumentTable : Table("document") {
     val id = uuid("id")
-    val eventId = uuid("event_id")
+    val eventId = uuid("event_id").references(EventTable.id)
     val eventorRef = text("eventor_ref")
     val name = text("name")
     val url = text("url")
@@ -70,7 +70,7 @@ private object DocumentTable : Table("document") {
 
 private object RaceTable : Table("race") {
     val id = uuid("id")
-    val eventId = uuid("event_id")
+    val eventId = uuid("event_id").references(EventTable.id)
     val eventorRef = text("eventor_ref")
     val name = text("name")
     val lightCondition = text("light_condition")

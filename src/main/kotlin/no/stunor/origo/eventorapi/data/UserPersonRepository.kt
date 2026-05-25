@@ -11,9 +11,9 @@ import org.jetbrains.exposed.sql.upsert
 import java.util.*
 import javax.sql.DataSource
 
-private object UserPersonTable : Table("user_person") {
+internal object UserPersonTable : Table("user_person") {
     val userId = uuid("user_id")
-    val personId = uuid("person_id")
+    val personId = uuid("person_id").references(PersonTable.id)
 
     override val primaryKey = PrimaryKey(userId, personId)
 }

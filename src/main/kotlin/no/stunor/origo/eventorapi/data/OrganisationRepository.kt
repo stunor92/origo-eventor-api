@@ -12,14 +12,14 @@ import org.jetbrains.exposed.sql.upsert
 import java.util.*
 import javax.sql.DataSource
 
-private object OrganisationTable : Table("organisation") {
+internal object OrganisationTable : Table("organisation") {
     val id = uuid("id")
     val eventorId = text("eventor_id")
     val eventorRef = text("eventor_ref")
     val name = text("name")
     val type = text("type")
     val country = text("country")
-    val regionId = uuid("region_id").nullable()
+    val regionId = uuid("region_id").references(RegionTable.id).nullable()
 }
 
 open class OrganisationRepository(

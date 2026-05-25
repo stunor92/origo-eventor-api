@@ -14,9 +14,9 @@ import org.jetbrains.exposed.sql.upsert
 import java.util.*
 import javax.sql.DataSource
 
-private object MembershipTable : Table("membership") {
-    val personId = uuid("person_id")
-    val organisationId = uuid("organisation_id")
+internal object MembershipTable : Table("membership") {
+    val personId = uuid("person_id").references(PersonTable.id)
+    val organisationId = uuid("organisation_id").references(OrganisationTable.id)
     val type = text("type")
 
     override val primaryKey = PrimaryKey(personId, organisationId)
