@@ -4,9 +4,9 @@ import no.stunor.origo.eventorapi.data.OrganisationRepository
 import no.stunor.origo.eventorapi.data.RegionRepository
 import no.stunor.origo.eventorapi.model.organisation.Organisation
 import no.stunor.origo.eventorapi.model.organisation.OrganisationType
-import org.springframework.stereotype.Component
 
-@Component
+
+
 class OrganisationConverter(
     private val organisationRepository: OrganisationRepository,
     private val regionRepository: RegionRepository

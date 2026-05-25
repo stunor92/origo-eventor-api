@@ -3,16 +3,12 @@ package no.stunor.origo.eventorapi.services.converter
 import no.stunor.origo.eventorapi.model.Eventor
 import no.stunor.origo.eventorapi.model.event.*
 import no.stunor.origo.eventorapi.model.organisation.Organisation
-import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.stereotype.Component
 import java.sql.Timestamp
 import java.text.ParseException
 
-@Component
-class EventConverter {
-    @Autowired
-    private lateinit var entryListConverter: EntryListConverter
-
+class EventConverter(
+    private val entryListConverter: EntryListConverter
+) {
     fun convertEventClassification(eventForm: String?): EventClassificationEnum {
         return when (eventForm) {
             "1" -> EventClassificationEnum.Championship
@@ -40,11 +36,7 @@ class EventConverter {
     }
 
     fun convertEventDisciplines(disciplineIds: List<Any>): List<Discipline> {
-        val result: MutableList<Discipline> = mutableListOf()
-        for (disciplineId in disciplineIds) {
-            result.add(convertEventDiscipline(disciplineId))
-        }
-        return result
+        return disciplineIds.map { convertEventDiscipline(it) }
     }
 
     fun convertEventForm(eventForm: String?): EventFormEnum {
@@ -67,7 +59,6 @@ class EventConverter {
         }
     }
 
-    // --- New helper methods to reduce cognitive complexity ---
     private fun updateBasicFields(existing: Event, eventorEvent: org.iof.eventor.Event, eventor: Eventor, organisations: List<Organisation>) {
         existing.eventorId = eventor.id
         existing.eventorRef = eventorEvent.eventId.content
@@ -92,11 +83,7 @@ class EventConverter {
         for (inc in incoming) {
             val key = keySelector(inc)
             val match = existingMap[key]
-            if (match != null) {
-                updater(match, inc)
-            } else {
-                existingMap[key] = inc
-            }
+            if (match != null) updater(match, inc) else existingMap[key] = inc
         }
         return existingMap.values.toList()
     }
@@ -104,17 +91,10 @@ class EventConverter {
     private fun mergeEventClasses(existing: Event, classes: org.iof.eventor.EventClassList?) {
         val incoming = EventClassConverter.convertEventClasses(eventCLassList = classes, event = existing)
         val merged = mergeByKey(existing.classes, incoming, { it.eventorRef }) { target, src ->
-            target.name = src.name
-            target.shortName = src.shortName
-            target.type = src.type
-            target.minAge = src.minAge
-            target.maxAge = src.maxAge
-            target.gender = src.gender
-            target.presentTime = src.presentTime
-            target.orderedResult = src.orderedResult
-            target.legs = src.legs
-            target.minAverageAge = src.minAverageAge
-            target.maxAverageAge = src.maxAverageAge
+            target.name = src.name; target.shortName = src.shortName; target.type = src.type
+            target.minAge = src.minAge; target.maxAge = src.maxAge; target.gender = src.gender
+            target.presentTime = src.presentTime; target.orderedResult = src.orderedResult
+            target.legs = src.legs; target.minAverageAge = src.minAverageAge; target.maxAverageAge = src.maxAverageAge
         }
         existing.classes.clear()
         existing.classes.addAll(merged)
@@ -123,14 +103,9 @@ class EventConverter {
     private fun mergeRaces(existing: Event, eventorEvent: org.iof.eventor.Event, eventor: Eventor) {
         val incoming = convertRaces(existing, eventorEvent.hashTableEntry, eventorEvent.eventRace, eventor)
         val merged = mergeByKey(existing.races, incoming, { it.eventorRef }) { target, src ->
-            target.name = src.name
-            target.lightCondition = src.lightCondition
-            target.distance = src.distance
-            target.date = src.date
-            target.position = src.position
-            target.startList = src.startList
-            target.resultList = src.resultList
-            target.livelox = src.livelox
+            target.name = src.name; target.lightCondition = src.lightCondition; target.distance = src.distance
+            target.date = src.date; target.position = src.position; target.startList = src.startList
+            target.resultList = src.resultList; target.livelox = src.livelox
         }
         existing.races.clear()
         existing.races.addAll(merged)
@@ -139,19 +114,15 @@ class EventConverter {
     private fun mergeDocuments(existing: Event, documents: org.iof.eventor.DocumentList?) {
         val incoming = convertEventDocument(documents, event = existing)
         val merged = mergeByKey(existing.documents, incoming, { it.eventorRef }) { target, src ->
-            target.name = src.name
-            target.url = src.url
-            target.type = src.type
+            target.name = src.name; target.url = src.url; target.type = src.type
         }
-        existing.documents.clear() // orphanRemoval cleans removed docs
+        existing.documents.clear()
         existing.documents.addAll(merged)
     }
 
     private fun mergeOrganisers(existing: List<Organisation>, incoming: List<Organisation>): MutableList<Organisation> {
         val result = existing.associateBy { it.eventorRef }.toMutableMap()
-        for (org in incoming) {
-            result.putIfAbsent(org.eventorRef, org)
-        }
+        for (org in incoming) result.putIfAbsent(org.eventorRef, org)
         return result.values.toMutableList()
     }
 
@@ -201,32 +172,11 @@ class EventConverter {
         }
     }
 
-    private fun convertRaces(
-        event: Event,
-        hashTableEntries: List<org.iof.eventor.HashTableEntry>,
-        eventRaces: List<org.iof.eventor.EventRace>,
-        eventor: Eventor
-    ): List<Race> {
-        val result = mutableListOf<Race>()
-        for (eventRace in eventRaces) {
-            result.add(
-                convertRace(
-                    event = event,
-                    hashTableEntries = hashTableEntries,
-                    eventRace = eventRace,
-                    eventor = eventor
-                )
-            )
-        }
-        return result
+    private fun convertRaces(event: Event, hashTableEntries: List<org.iof.eventor.HashTableEntry>, eventRaces: List<org.iof.eventor.EventRace>, eventor: Eventor): List<Race> {
+        return eventRaces.map { convertRace(event, hashTableEntries, it, eventor) }
     }
 
-    private fun convertRace(
-        event: Event,
-        hashTableEntries: List<org.iof.eventor.HashTableEntry>,
-        eventRace: org.iof.eventor.EventRace,
-        eventor: Eventor
-    ): Race {
+    private fun convertRace(event: Event, hashTableEntries: List<org.iof.eventor.HashTableEntry>, eventRace: org.iof.eventor.EventRace, eventor: Eventor): Race {
         return Race(
             eventorRef = eventRace.eventRaceId.content,
             name = eventRace.name.content,
@@ -241,105 +191,43 @@ class EventConverter {
         )
     }
 
-    fun convertLightCondition(lightCondition: String?): LightConditionEnum {
-        return when (lightCondition) {
-            "Day" -> LightConditionEnum.Day
-            "Night" -> LightConditionEnum.Night
-            "DayAndNight" -> LightConditionEnum.DayAndNight
-            else -> LightConditionEnum.Day
-        }
+    fun convertLightCondition(lightCondition: String?): LightConditionEnum = when (lightCondition) {
+        "Day" -> LightConditionEnum.Day; "Night" -> LightConditionEnum.Night; "DayAndNight" -> LightConditionEnum.DayAndNight; else -> LightConditionEnum.Day
     }
 
-    fun convertRaceDistance(raceDistance: String?): DistanceEnum {
-        if (raceDistance == null) {
-            return DistanceEnum.Middle
-        }
-        return when (raceDistance) {
-            "Long" -> DistanceEnum.Long
-            "Middle" -> DistanceEnum.Middle
-            "Sprint", "SprintRelay" -> DistanceEnum.Sprint
-            "Ultralong" -> DistanceEnum.UltraLong
-            "Pre-O" -> DistanceEnum.PreO
-            "Temp-O" -> DistanceEnum.TempO
-            else -> DistanceEnum.Middle
-        }
+    fun convertRaceDistance(raceDistance: String?): DistanceEnum = when (raceDistance) {
+        null -> DistanceEnum.Middle; "Long" -> DistanceEnum.Long; "Middle" -> DistanceEnum.Middle
+        "Sprint", "SprintRelay" -> DistanceEnum.Sprint; "Ultralong" -> DistanceEnum.UltraLong
+        "Pre-O" -> DistanceEnum.PreO; "Temp-O" -> DistanceEnum.TempO; else -> DistanceEnum.Middle
     }
 
-    fun hasStartList(hashTableEntries: List<org.iof.eventor.HashTableEntry>, eventRaceId: String): Boolean {
-        for (hashTableEntry in hashTableEntries) {
-            if (hashTableEntry.key.content == "startList_$eventRaceId") {
-                return true
-            }
-        }
-        return false
-    }
+    fun hasStartList(hashTableEntries: List<org.iof.eventor.HashTableEntry>, eventRaceId: String): Boolean =
+        hashTableEntries.any { it.key.content == "startList_$eventRaceId" }
 
-    fun hasResultList(hashTableEntries: List<org.iof.eventor.HashTableEntry>, eventRaceId: String): Boolean {
-        for (hashTableEntry in hashTableEntries) {
-            if (hashTableEntry.key.content == "officialResult_$eventRaceId") {
-                return true
-            }
-        }
-        return false
-    }
+    fun hasResultList(hashTableEntries: List<org.iof.eventor.HashTableEntry>, eventRaceId: String): Boolean =
+        hashTableEntries.any { it.key.content == "officialResult_$eventRaceId" }
 
-    fun hasLivelox(hashTableEntries: List<org.iof.eventor.HashTableEntry>): Boolean {
-        for (hashTableEntry in hashTableEntries) {
-            if (hashTableEntry.key.content == "Eventor_LiveloxEventConfigurations") {
-                return true
-            }
-        }
-        return false
-    }
+    fun hasLivelox(hashTableEntries: List<org.iof.eventor.HashTableEntry>): Boolean =
+        hashTableEntries.any { it.key.content == "Eventor_LiveloxEventConfigurations" }
 
-    fun convertPosition(eventCenterPosition: org.iof.eventor.EventCenterPosition): RacePosition {
-        return RacePosition(eventCenterPosition.y.toDouble(), eventCenterPosition.x.toDouble())
-    }
+    fun convertPosition(eventCenterPosition: org.iof.eventor.EventCenterPosition): RacePosition =
+        RacePosition(eventCenterPosition.y.toDouble(), eventCenterPosition.x.toDouble())
 
-    private fun convertHostMessage(hashTableEntries: List<org.iof.eventor.HashTableEntry>): String? {
-        for (hashTableEntry in hashTableEntries) {
-            if (hashTableEntry.key.content == "Eventor_Message") {
-                return hashTableEntry.value.content
-            }
-        }
-        return null
-    }
+    private fun convertHostMessage(hashTableEntries: List<org.iof.eventor.HashTableEntry>): String? =
+        hashTableEntries.firstOrNull { it.key.content == "Eventor_Message" }?.value?.content
 
     private fun convertEventDocument(documentList: org.iof.eventor.DocumentList?, event: Event): List<Document> {
-        val result: MutableList<Document> = ArrayList()
-        if (documentList == null) {
-            return mutableListOf()
+        if (documentList == null) return mutableListOf()
+        return documentList.document.map { document ->
+            Document(eventorRef = document.id.toString(), name = document.name, url = document.url, type = document.type, event = event)
         }
-        for (document in documentList.document) {
-            result.add(
-                Document(
-                    eventorRef = document.id.toString(),
-                    name = document.name,
-                    url = document.url,
-                    type = document.type,
-                    event = event
-                )
-            )
-        }
-        return result
     }
 
-    fun convertEntryBreaks(
-        entryBreaks: List<org.iof.eventor.EntryBreak>,
-        eventor: Eventor
-    ): List<Timestamp> {
-        val result: MutableList<Timestamp> = ArrayList()
-        for (entryBreak in entryBreaks) {
-            if (entryBreak.validToDate != null) {
-                result.add(
-                    TimeStampConverter.parseDate(
-                        "${entryBreak.validToDate.date.content} ${entryBreak.validToDate.clock.content}",
-                        eventor.id
-                    )
-                )
-            }
+    fun convertEntryBreaks(entryBreaks: List<org.iof.eventor.EntryBreak>, eventor: Eventor): List<Timestamp> {
+        return entryBreaks.mapNotNull { entryBreak ->
+            if (entryBreak.validToDate != null)
+                TimeStampConverter.parseDate("${entryBreak.validToDate.date.content} ${entryBreak.validToDate.clock.content}", eventor.id)
+            else null
         }
-        return result
     }
-
 }

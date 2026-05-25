@@ -3,10 +3,10 @@ package no.stunor.origo.eventorapi.services.converter
 import no.stunor.origo.eventorapi.data.OrganisationRepository
 import no.stunor.origo.eventorapi.model.Eventor
 import no.stunor.origo.eventorapi.model.person.*
-import org.springframework.stereotype.Component
+
 import java.util.*
 
-@Component
+
 class PersonConverter(
     private val organisationRepository: OrganisationRepository,
 ) {

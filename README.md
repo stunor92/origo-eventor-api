@@ -1,6 +1,6 @@
 # Eventor API
 
-This Spring Boot web application converts Eventor IOF-XML files to JSON format, which is used in OriGo apps.
+This Ktor web application converts Eventor IOF-XML files to JSON format, which is used in OriGo apps.
 The application provides REST API endpoints to fetch and convert event data from various Eventor federations.
 
 ## Overview
@@ -25,11 +25,11 @@ The OriGo EventorApi acts as a bridge between Eventor's IOF-XML format and OriGo
 ## Technology Stack
 
 - **Language**: Kotlin (primary) with Java (JAXB-generated classes)
-- **Framework**: Spring Boot 4.0.0
+- **Framework**: Ktor 3.x
 - **Build Tool**: Maven
 - **Java Version**: Java 21
-- **Database**: PostgreSQL with JDBC (migrated from JPA/Hibernate)
-- **API Documentation**: SpringDoc OpenAPI (Swagger)
+- **Database**: PostgreSQL with Exposed + JDBC
+- **API Documentation**: OpenAPI/Swagger endpoints
 - **XML Processing**: JAXB for IOF-XML schema
 - **Authentication**: JWT tokens
 
@@ -232,16 +232,20 @@ mvn clean compile
 mvn generate-sources
 
 # Full build with tests
-mvn clean install
+mvn clean verify
+
+# Build runnable fat jar
+mvn clean package
 ```
 
 ## Run the application
 ```bash
-# Run with local profile
-mvn spring-boot:run
+# Run directly via Maven
+mvn exec:java
 
-# Run with specific profile
-mvn spring-boot:run -Dspring-boot.run.profiles=local
+# Build and run shaded jar
+mvn clean package
+java -jar target/eventor-api-13.1.0.jar
 
 # Run tests
 mvn test

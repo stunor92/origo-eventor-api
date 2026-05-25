@@ -1,94 +1,105 @@
 package no.stunor.origo.eventorapi.data
 
 import no.stunor.origo.eventorapi.model.event.Fee
-import org.springframework.jdbc.core.JdbcTemplate
-import org.springframework.jdbc.core.RowMapper
-import org.springframework.stereotype.Repository
-import java.sql.ResultSet
+import org.jetbrains.exposed.sql.Database
+import org.jetbrains.exposed.sql.ResultRow
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.Table
+import org.jetbrains.exposed.sql.deleteWhere
+import org.jetbrains.exposed.sql.javatime.timestamp
+import org.jetbrains.exposed.sql.selectAll
+import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.sql.upsert
 import java.util.*
+import javax.sql.DataSource
 
-@Repository
-class FeeRepository(private val jdbcTemplate: JdbcTemplate) {
+private object FeeTable : Table("fee") {
+    val id = uuid("id")
+    val eventorRef = text("eventor_ref")
+    val name = text("name")
+    val currency = text("currency").nullable()
+    val amount = double("amount").nullable()
+    val externalFee = double("external_fee").nullable()
+    val percentageSurcharge = integer("percentage_surcharge").nullable()
+    val validFrom = timestamp("valid_from").nullable()
+    val validTo = timestamp("valid_to").nullable()
+    val fromBirthYear = integer("from_birth_year").nullable()
+    val toBirthYear = integer("to_birth_year").nullable()
+    val taxIncluded = bool("tax_included")
+    val eventId = uuid("event_id").nullable()
+}
 
-    private val rowMapper = RowMapper { rs: ResultSet, _: Int ->
-        Fee(
-            id = rs.getObject("id", UUID::class.java),
-            eventorRef = rs.getString("eventor_ref"),
-            name = rs.getString("name"),
-            currency = rs.getString("currency"),
-            amount = rs.getDouble("amount"),
-            externalFee = rs.getDouble("external_fee"),
-            percentageSurcharge = rs.getInt("percentage_surcharge"),
-            validFrom = rs.getTimestamp("valid_from"),
-            validTo = rs.getTimestamp("valid_to"),
-            fromBirthYear = rs.getInt("from_birth_year"),
-            toBirthYear = rs.getInt("to_birth_year"),
-            taxIncluded = rs.getBoolean("tax_included"),
+private object ClassFeeTable : Table("class_fee") {
+    val feeId = uuid("fee_id")
+    val classId = uuid("class_id")
+}
+
+class FeeRepository(dataSource: DataSource) {
+
+    private val database = Database.connect(dataSource)
+
+    private fun toFee(row: ResultRow): Fee {
+        return Fee(
+            id = row[FeeTable.id],
+            eventorRef = row[FeeTable.eventorRef],
+            name = row[FeeTable.name],
+            currency = row[FeeTable.currency],
+            amount = row[FeeTable.amount],
+            externalFee = row[FeeTable.externalFee],
+            percentageSurcharge = row[FeeTable.percentageSurcharge],
+            validFrom = row[FeeTable.validFrom]?.let { java.sql.Timestamp.from(it) },
+            validTo = row[FeeTable.validTo]?.let { java.sql.Timestamp.from(it) },
+            fromBirthYear = row[FeeTable.fromBirthYear],
+            toBirthYear = row[FeeTable.toBirthYear],
+            taxIncluded = row[FeeTable.taxIncluded],
             classes = mutableListOf(), // Load separately if needed
-            eventId = rs.getObject("event_id", UUID::class.java)
+            eventId = row[FeeTable.eventId]
         )
     }
     
     fun findAllByEventId(eventId: UUID?): List<Fee> {
         if (eventId == null) return emptyList()
-        return jdbcTemplate.query(
-            "SELECT * FROM fee WHERE event_id = ?",
-            rowMapper,
-            eventId
-        )
+        return transaction(database) {
+            FeeTable
+                .selectAll()
+                .where { FeeTable.eventId eq eventId }
+                .map(::toFee)
+        }
     }
     
     fun save(fee: Fee): Fee {
-        if (fee.id == null) {
-            fee.id = UUID.randomUUID()
-            jdbcTemplate.update(
-                """
-                INSERT INTO fee (id, eventor_ref, name, currency, amount, external_fee, 
-                    percentage_surcharge, valid_from, valid_to, from_birth_year, to_birth_year, 
-                    tax_included, event_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                fee.id, fee.eventorRef, fee.name, fee.currency, fee.amount, fee.externalFee,
-                fee.percentageSurcharge, fee.validFrom, fee.validTo, fee.fromBirthYear, 
-                fee.toBirthYear, fee.taxIncluded, fee.eventId
-            )
-        } else {
-            jdbcTemplate.update(
-                """
-                INSERT INTO fee (id, eventor_ref, name, currency, amount, external_fee, 
-                    percentage_surcharge, valid_from, valid_to, from_birth_year, to_birth_year, 
-                    tax_included, event_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT (id) DO UPDATE SET
-                    eventor_ref = EXCLUDED.eventor_ref,
-                    name = EXCLUDED.name,
-                    currency = EXCLUDED.currency,
-                    amount = EXCLUDED.amount,
-                    external_fee = EXCLUDED.external_fee,
-                    percentage_surcharge = EXCLUDED.percentage_surcharge,
-                    valid_from = EXCLUDED.valid_from,
-                    valid_to = EXCLUDED.valid_to,
-                    from_birth_year = EXCLUDED.from_birth_year,
-                    to_birth_year = EXCLUDED.to_birth_year,
-                    tax_included = EXCLUDED.tax_included,
-                    event_id = EXCLUDED.event_id
-                """,
-                fee.id, fee.eventorRef, fee.name, fee.currency, fee.amount, fee.externalFee,
-                fee.percentageSurcharge, fee.validFrom, fee.validTo, fee.fromBirthYear, 
-                fee.toBirthYear, fee.taxIncluded, fee.eventId
-            )
-        }
-        
-        // Save class associations
-        if (fee.classes.isNotEmpty()) {
-            // First delete existing associations
-            jdbcTemplate.update("DELETE FROM class_fee WHERE fee_id = ?", fee.id)
-            // Then insert new ones
-            for (eventClass in fee.classes) {
-                jdbcTemplate.update(
-                    "INSERT INTO class_fee (fee_id, class_id) VALUES (?, ?) ON CONFLICT DO NOTHING",
-                    fee.id, eventClass.id
-                )
+        transaction(database) {
+            if (fee.id == null) {
+                fee.id = UUID.randomUUID()
+            }
+
+            FeeTable.upsert {
+                it[FeeTable.id] = fee.id!!
+                it[FeeTable.eventorRef] = fee.eventorRef
+                it[FeeTable.name] = fee.name
+                it[FeeTable.currency] = fee.currency
+                it[FeeTable.amount] = fee.amount
+                it[FeeTable.externalFee] = fee.externalFee
+                it[FeeTable.percentageSurcharge] = fee.percentageSurcharge
+                it[FeeTable.validFrom] = fee.validFrom?.toInstant()
+                it[FeeTable.validTo] = fee.validTo?.toInstant()
+                it[FeeTable.fromBirthYear] = fee.fromBirthYear
+                it[FeeTable.toBirthYear] = fee.toBirthYear
+                it[FeeTable.taxIncluded] = fee.taxIncluded
+                it[FeeTable.eventId] = fee.eventId
+            }
+
+            // Save class associations
+            if (fee.classes.isNotEmpty()) {
+                // First delete existing associations
+                ClassFeeTable.deleteWhere { ClassFeeTable.feeId eq fee.id!! }
+                // Then insert new ones
+                for (eventClass in fee.classes) {
+                    ClassFeeTable.upsert {
+                        it[ClassFeeTable.feeId] = fee.id!!
+                        it[ClassFeeTable.classId] = eventClass.id
+                    }
+                }
             }
         }
         
@@ -101,10 +112,12 @@ class FeeRepository(private val jdbcTemplate: JdbcTemplate) {
     }
     
     fun deleteAll(fees: List<Fee>) {
-        fees.forEach { fee ->
-            fee.id?.let { id ->
-                jdbcTemplate.update("DELETE FROM class_fee WHERE fee_id = ?", id)
-                jdbcTemplate.update("DELETE FROM fee WHERE id = ?", id)
+        transaction(database) {
+            fees.forEach { fee ->
+                fee.id?.let { id ->
+                    ClassFeeTable.deleteWhere { ClassFeeTable.feeId eq id }
+                    FeeTable.deleteWhere { FeeTable.id eq id }
+                }
             }
         }
     }

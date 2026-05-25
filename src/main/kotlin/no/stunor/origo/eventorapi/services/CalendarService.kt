@@ -1,6 +1,5 @@
 package no.stunor.origo.eventorapi.services
 
-import jakarta.annotation.PreDestroy
 import no.stunor.origo.eventorapi.api.EventorService
 import no.stunor.origo.eventorapi.data.EventorRepository
 import no.stunor.origo.eventorapi.data.OrganisationRepository
@@ -14,7 +13,6 @@ import no.stunor.origo.eventorapi.model.event.EventClassificationEnum
 import no.stunor.origo.eventorapi.model.person.Person
 import no.stunor.origo.eventorapi.services.converter.CalendarConverter
 import org.slf4j.LoggerFactory
-import org.springframework.stereotype.Service
 import java.time.LocalDate
 import java.util.*
 import java.util.concurrent.CompletableFuture
@@ -25,32 +23,26 @@ import java.util.concurrent.TimeUnit
 private typealias CalendarRaceResult = PartialResult<List<CalendarRace>>
 private typealias CalendarRaceResultFuture = CompletableFuture<CalendarRaceResult>
 
-@Service
 class CalendarService(
-    var personRepository: PersonRepository,
-    var eventorRepository: EventorRepository,
-    var organisationRepository: OrganisationRepository,
-    var regionRepository: RegionRepository,
-    var eventorService: EventorService
+    private val personRepository: PersonRepository,
+    private val eventorRepository: EventorRepository,
+    private val organisationRepository: OrganisationRepository,
+    private val regionRepository: RegionRepository,
+    private val eventorService: EventorService,
+    private val calendarConverter: CalendarConverter
 ) {
     private val log = LoggerFactory.getLogger(this.javaClass)
-    // SynchronousQueue + high max-pool prevents nested-parallelism starvation where
-    // outer tasks block while waiting for inner tasks queued on the same executor.
     private val executor = ThreadPoolExecutor(
         Runtime.getRuntime().availableProcessors() * 4,
         500,
         60L, TimeUnit.SECONDS,
         SynchronousQueue()
     )
-
-    // Timeout for waiting on a batch of parallel Eventor API calls (HTTP timeout is 6s, so 30s is a safe upper bound)
     private val batchTimeoutSeconds = 30L
 
-    @PreDestroy
     fun shutdownExecutor() {
         executor.shutdown()
         try {
-            // Allow up to 60 seconds for graceful shutdown of ongoing tasks
             if (!executor.awaitTermination(60, TimeUnit.SECONDS)) {
                 log.warn("Executor did not terminate within 60 seconds, forcing shutdown")
                 executor.shutdownNow()
@@ -62,25 +54,42 @@ class CalendarService(
         }
     }
 
-    private var calendarConverter = CalendarConverter(
-        organisationRepository = organisationRepository,
-        regionRepository = regionRepository
-    )
-
-
-
-
-    fun getEventList(from: LocalDate, to: LocalDate, classifications: List<EventClassificationEnum>?, userId: UUID?): PartialResult<List<CalendarRace>> {
+    fun getEventList(
+        from: LocalDate,
+        to: LocalDate,
+        classifications: List<EventClassificationEnum>?,
+        userId: UUID?
+    ): PartialResult<List<CalendarRace>> {
         val eventorList = eventorRepository.findAll()
         val futures: List<CalendarRaceResultFuture> = eventorList.map { eventor ->
             createEventorFetchFuture(eventor, from, to, classifications, userId)
         }
         val waitTimedOut = awaitBatchOrTimeout(futures)
         val completedResults = collectCompletedResults(futures)
-
         val result = completedResults.flatMap { it.data }
         val isPartial = computeIsPartial(waitTimedOut, futures, completedResults)
         return PartialResult(filterRacesByDateRange(result, from, to), isPartial)
+    }
+
+    fun getEventList(
+        eventorId: String,
+        from: LocalDate,
+        to: LocalDate,
+        organisations: List<String>?,
+        classifications: List<EventClassificationEnum>?,
+        userId: UUID?
+    ): PartialResult<List<CalendarRace>> {
+        val eventor = eventorRepository.findById(eventorId) ?: throw EventorNotFoundException()
+        val persons = resolvePersonsForEventor(eventor.id, userId)
+        val races = getEventListInternal(
+            eventor = eventor,
+            from = from,
+            to = to,
+            organisations = organisations,
+            classifications = classifications,
+            persons = persons
+        )
+        return PartialResult(filterRacesByDateRange(races.data, from, to), isPartial = races.isPartial)
     }
 
     private fun createEventorFetchFuture(
@@ -116,14 +125,9 @@ class CalendarService(
         }
     }
 
-    private fun collectCompletedResults(
-        futures: List<CalendarRaceResultFuture>
-    ): List<CalendarRaceResult> {
+    private fun collectCompletedResults(futures: List<CalendarRaceResultFuture>): List<CalendarRaceResult> {
         return futures.mapNotNull { future ->
-            if (!future.isDone) {
-                return@mapNotNull null
-            }
-
+            if (!future.isDone) return@mapNotNull null
             try {
                 future.join()
             } catch (ex: Exception) {
@@ -137,9 +141,7 @@ class CalendarService(
         waitTimedOut: Boolean,
         futures: List<CalendarRaceResultFuture>,
         completedResults: List<CalendarRaceResult>
-    ): Boolean {
-        return waitTimedOut || futures.any { !it.isDone } || completedResults.any { it.isPartial }
-    }
+    ): Boolean = waitTimedOut || futures.any { !it.isDone } || completedResults.any { it.isPartial }
 
     private fun resolvePersonsForEventor(eventorId: String, userId: UUID?): List<Person> {
         return if (userId != null) {
@@ -149,20 +151,17 @@ class CalendarService(
         }
     }
 
-    fun getEventList(eventorId: String, from: LocalDate, to: LocalDate, organisations: List<String>?, classifications: List<EventClassificationEnum>?, userId: UUID?): PartialResult<List<CalendarRace>> {
-        val eventor = eventorRepository.findById(eventorId) ?: throw EventorNotFoundException()
-        val persons = resolvePersonsForEventor(eventor.id, userId)
-        val races = getEventListInternal(eventor = eventor, from = from, to = to, organisations = organisations, classifications = classifications, persons = persons)
-        return PartialResult(filterRacesByDateRange(races.data, from, to), isPartial = races.isPartial)
-    }
-
-    private fun getEventListInternal(eventor: Eventor, from: LocalDate, to: LocalDate, organisations: List<String>?, classifications: List<EventClassificationEnum>?, persons: List<Person>): PartialResult<List<CalendarRace>> {
+    private fun getEventListInternal(
+        eventor: Eventor,
+        from: LocalDate,
+        to: LocalDate,
+        organisations: List<String>?,
+        classifications: List<EventClassificationEnum>?,
+        persons: List<Person>
+    ): PartialResult<List<CalendarRace>> {
         val eventList = eventorService.getEventList(eventor, from, to, organisations, classifications)
-
-        // Use map instead of loop for better performance
         val events = eventList!!.event.map { it.eventId.content }
 
-        // Extract person IDs and organization IDs in one pass
         val personIds = persons.map { it.eventorRef }
         val organisationIds = persons.flatMap { person ->
             person.memberships.mapNotNull { it.organisation?.eventorRef }
@@ -171,7 +170,6 @@ class CalendarService(
         log.info("Fetching competitor-count for persons {} and organisations {}.", personIds, organisationIds)
         val competitorCountList = eventorService.getCompetitorCounts(eventor, events, organisationIds, personIds)
 
-        // Fetch event classes for all events in parallel
         log.info("Fetching event classes for {} events", events.size)
         val eventClassesFutures = events.map { eventId ->
             CompletableFuture.supplyAsync({
@@ -182,19 +180,15 @@ class CalendarService(
             }
         }
 
-        // Wait for all event class fetches to complete (with timeout)
         try {
             CompletableFuture.allOf(*eventClassesFutures.toTypedArray()).get(batchTimeoutSeconds, TimeUnit.SECONDS)
         } catch (_: java.util.concurrent.TimeoutException) {
             log.warn("Timeout fetching event classes after {} seconds", batchTimeoutSeconds)
         }
 
-        // Collect results
         val eventClassesMap = eventClassesFutures.mapNotNull { future ->
             if (future.isDone) {
-                try {
-                    future.join()
-                } catch (ex: Exception) {
+                try { future.join() } catch (ex: Exception) {
                     log.warn("Failed to retrieve event classes: {}", ex.message)
                     null
                 }
@@ -212,4 +206,3 @@ class CalendarService(
         }
     }
 }
-

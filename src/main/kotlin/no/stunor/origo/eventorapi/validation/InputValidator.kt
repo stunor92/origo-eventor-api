@@ -1,11 +1,9 @@
 package no.stunor.origo.eventorapi.validation
 
-import org.springframework.stereotype.Component
 
 /**
  * Validator for user input to prevent SSRF and injection attacks
  */
-@Component
 class InputValidator {
 
     companion object {

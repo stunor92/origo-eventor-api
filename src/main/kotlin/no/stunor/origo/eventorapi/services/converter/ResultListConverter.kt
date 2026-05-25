@@ -11,24 +11,16 @@ import no.stunor.origo.eventorapi.model.event.entry.TeamEntry
 import no.stunor.origo.eventorapi.model.event.entry.TeamMember
 import org.iof.eventor.Event
 import org.iof.eventor.ResultList
-import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.stereotype.Component
 import java.text.DateFormat
 import java.text.ParseException
 import java.text.SimpleDateFormat
 import java.util.*
 
-@Component
-class ResultListConverter {
-
-    @Autowired
-    private lateinit var organisationConverter: OrganisationConverter
-
-    @Autowired
-    private lateinit var personConverter: PersonConverter
-
-    @Autowired
-    private lateinit var entryListConverter: EntryListConverter
+class ResultListConverter(
+    private val organisationConverter: OrganisationConverter,
+    private val personConverter: PersonConverter,
+    private val entryListConverter: EntryListConverter
+) {
 
     @Throws(NumberFormatException::class, ParseException::class)
     fun convertEventResultList(eventor: Eventor, resultList: ResultList): List<Entry> {

@@ -1,62 +1,88 @@
 package no.stunor.origo.eventorapi.data
 
 import no.stunor.origo.eventorapi.model.person.*
-import org.springframework.jdbc.core.JdbcTemplate
-import org.springframework.jdbc.core.RowMapper
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate
-import org.springframework.stereotype.Repository
-import java.sql.ResultSet
-import java.time.Instant
-import java.util.*
+import org.jetbrains.exposed.sql.Database
+import org.jetbrains.exposed.sql.ResultRow
+import org.jetbrains.exposed.sql.Table
+import org.jetbrains.exposed.sql.and
+import org.jetbrains.exposed.sql.javatime.timestamp
+import org.jetbrains.exposed.sql.selectAll
+import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.sql.upsert
+import java.util.UUID
+import javax.sql.DataSource
 
-@Repository
+private object PersonTable : Table("person") {
+    val id = uuid("id")
+    val eventorId = text("eventor_id")
+    val eventorRef = text("eventor_ref")
+    val familyName = text("family_name")
+    val givenName = text("given_name")
+    val birthYear = integer("birth_year")
+    val nationality = text("nationality")
+    val gender = text("gender")
+    val mobilePhone = text("mobile_phone").nullable()
+    val email = text("email").nullable()
+    val lastUpdated = timestamp("last_updated")
+}
+
+private object UserPersonTable2 : Table("user_person") {
+    val userId = uuid("user_id")
+    val personId = uuid("person_id")
+}
+
+private object MembershipTable2 : Table("membership") {
+    val personId = uuid("person_id")
+    val organisationId = uuid("organisation_id")
+    val type = text("type")
+}
+
 open class PersonRepository(
-    private val jdbcTemplate: JdbcTemplate,
-    private val namedParameterJdbcTemplate: NamedParameterJdbcTemplate,
+    dataSource: DataSource,
     private val membershipRepository: MembershipRepository,
     private val userPersonRepository: UserPersonRepository
 ) {
     
-    // Simple row mapper without nested queries (for batch loading)
-    private val simpleRowMapper = RowMapper { rs: ResultSet, _: Int ->
-        Person(
-            id = rs.getObject("id", UUID::class.java),
-            eventorId = rs.getString("eventor_id"),
-            eventorRef = rs.getString("eventor_ref"),
+    private val database = Database.connect(dataSource)
+
+    private fun toPersonSimple(row: ResultRow): Person {
+        return Person(
+            id = row[PersonTable.id],
+            eventorId = row[PersonTable.eventorId],
+            eventorRef = row[PersonTable.eventorRef],
             name = PersonName(
-                family = rs.getString("family_name") ?: "",
-                given = rs.getString("given_name") ?: ""
+                family = row[PersonTable.familyName],
+                given = row[PersonTable.givenName]
             ),
-            birthYear = rs.getInt("birth_year"),
-            nationality = rs.getString("nationality") ?: "",
-            gender = Gender.valueOf(rs.getString("gender") ?: "Other"),
-            mobilePhone = rs.getString("mobile_phone"),
-            email = rs.getString("email"),
+            birthYear = row[PersonTable.birthYear],
+            nationality = row[PersonTable.nationality],
+            gender = Gender.valueOf(row[PersonTable.gender]),
+            mobilePhone = row[PersonTable.mobilePhone],
+            email = row[PersonTable.email],
             memberships = mutableListOf(), // Loaded separately
             users = mutableListOf(), // Loaded separately
-            lastUpdated = rs.getTimestamp("last_updated")?.toInstant() ?: Instant.now()
+            lastUpdated = row[PersonTable.lastUpdated]
         )
     }
 
-    // Row mapper with nested queries (only for single person lookups)
-    private val rowMapper = RowMapper { rs: ResultSet, _: Int ->
-        val id = rs.getObject("id", UUID::class.java)
-        Person(
+    private fun toPerson(row: ResultRow): Person {
+        val id = row[PersonTable.id]
+        return Person(
             id = id,
-            eventorId = rs.getString("eventor_id"),
-            eventorRef = rs.getString("eventor_ref"),
+            eventorId = row[PersonTable.eventorId],
+            eventorRef = row[PersonTable.eventorRef],
             name = PersonName(
-                family = rs.getString("family_name") ?: "",
-                given = rs.getString("given_name") ?: ""
+                family = row[PersonTable.familyName],
+                given = row[PersonTable.givenName]
             ),
-            birthYear = rs.getInt("birth_year"),
-            nationality = rs.getString("nationality") ?: "",
-            gender = Gender.valueOf(rs.getString("gender") ?: "Other"),
-            mobilePhone = rs.getString("mobile_phone"),
-            email = rs.getString("email"),
+            birthYear = row[PersonTable.birthYear],
+            nationality = row[PersonTable.nationality],
+            gender = Gender.valueOf(row[PersonTable.gender]),
+            mobilePhone = row[PersonTable.mobilePhone],
+            email = row[PersonTable.email],
             memberships = membershipRepository.findAllByPersonId(id).toMutableList(),
             users = userPersonRepository.findAllByPersonId(id).toMutableList(),
-            lastUpdated = rs.getTimestamp("last_updated")?.toInstant() ?: Instant.now()
+            lastUpdated = row[PersonTable.lastUpdated]
         )
     }
     
@@ -69,28 +95,30 @@ open class PersonRepository(
         val personIds = persons.mapNotNull { it.id }
         if (personIds.isEmpty()) return
 
-        val params = mapOf("personIds" to personIds)
-        val sql = "SELECT * FROM membership WHERE person_id IN (:personIds)"
+        transaction(database) {
+            val allMemberships = MembershipTable2
+                .selectAll()
+                .where { MembershipTable2.personId inList personIds }
+                .map { row ->
+                    val personId = row[MembershipTable2.personId]
+                    val organisationId = row[MembershipTable2.organisationId]
+                    val organisation = membershipRepository.getOrganisationById(organisationId)
 
-        val allMemberships = namedParameterJdbcTemplate.query(sql, params) { rs: ResultSet, _: Int ->
-            val personId = rs.getObject("person_id", UUID::class.java)
-            val organisationId = rs.getObject("organisation_id", UUID::class.java)
-            val organisation = organisationId?.let { membershipRepository.getOrganisationById(it) }
+                    Membership(
+                        id = MembershipKey(personId = personId, organisationId = organisationId),
+                        person = null,
+                        organisation = organisation,
+                        type = MembershipType.valueOf(row[MembershipTable2.type])
+                    )
+                }
 
-            Membership(
-                id = MembershipKey(personId = personId, organisationId = organisationId),
-                person = null,
-                organisation = organisation,
-                type = MembershipType.valueOf(rs.getString("type"))
-            )
-        }.toList()
+            // Group memberships by person_id
+            val membershipsByPersonId = allMemberships.groupBy { it.id.personId }
 
-        // Group memberships by person_id
-        val membershipsByPersonId = allMemberships.groupBy { it.id.personId }
-
-        // Assign memberships to persons
-        persons.forEach { person ->
-            person.memberships = membershipsByPersonId[person.id]?.toMutableList() ?: mutableListOf()
+            // Assign memberships to persons
+            persons.forEach { person ->
+                person.memberships = membershipsByPersonId[person.id]?.toMutableList() ?: mutableListOf()
+            }
         }
     }
 
@@ -103,50 +131,48 @@ open class PersonRepository(
         val personIds = persons.mapNotNull { it.id }
         if (personIds.isEmpty()) return
 
-        val params = mapOf("personIds" to personIds)
-        val sql = "SELECT * FROM user_person WHERE person_id IN (:personIds)"
+        transaction(database) {
+            val allUserPersons = UserPersonTable2
+                .selectAll()
+                .where { UserPersonTable2.personId inList personIds }
+                .map { row ->
+                    UserPerson(
+                        id = UserPersonKey(
+                            userId = row[UserPersonTable2.userId],
+                            personId = row[UserPersonTable2.personId]
+                        ),
+                        person = null
+                    )
+                }
 
-        val allUserPersons = namedParameterJdbcTemplate.query(sql, params) { rs: ResultSet, _: Int ->
-            UserPerson(
-                id = UserPersonKey(
-                    userId = rs.getObject("user_id", UUID::class.java),
-                    personId = rs.getObject("person_id", UUID::class.java)
-                ),
-                person = null
-            )
-        }.toList()
+            // Group user associations by person_id
+            val usersByPersonId = allUserPersons.groupBy { it.id.personId }
 
-        // Group user associations by person_id
-        val usersByPersonId = allUserPersons.groupBy { it.id.personId }
-
-        // Assign user associations to persons
-        persons.forEach { person ->
-            person.users = usersByPersonId[person.id]?.toMutableList() ?: mutableListOf()
+            // Assign user associations to persons
+            persons.forEach { person ->
+                person.users = usersByPersonId[person.id]?.toMutableList() ?: mutableListOf()
+            }
         }
     }
 
     open fun findByEventorIdAndEventorRef(eventorId: String, eventorRef: String): Person? {
-        return try {
-            jdbcTemplate.queryForObject(
-                "SELECT * FROM person WHERE eventor_id = ? AND eventor_ref = ?",
-                rowMapper,
-                eventorId, eventorRef
-            )
-        } catch (_: Exception) {
-            null
+        return transaction(database) {
+            PersonTable
+                .selectAll()
+                .where { (PersonTable.eventorId eq eventorId) and (PersonTable.eventorRef eq eventorRef) }
+                .limit(1)
+                .map(::toPerson)
+                .singleOrNull()
         }
     }
     
     open fun findAllByUsers(userId: UUID): List<Person> {
-        val persons = jdbcTemplate.query(
-            """
-            SELECT p.* FROM person p
-            INNER JOIN user_person up ON p.id = up.person_id
-            WHERE up.user_id = ?
-            """,
-            simpleRowMapper, // Use simpleRowMapper instead of rowMapper
-            userId
-        )
+        val persons = transaction(database) {
+            PersonTable.innerJoin(UserPersonTable2)
+                .selectAll()
+                .where { UserPersonTable2.userId eq userId }
+                .map(::toPersonSimple)
+        }
 
         // Batch load memberships and user associations
         loadMembershipsForPersons(persons)
@@ -156,15 +182,12 @@ open class PersonRepository(
     }
     
     open fun findAllByUsersAndEventorId(userId: UUID, eventorId: String): List<Person> {
-        val persons = jdbcTemplate.query(
-            """
-            SELECT p.* FROM person p
-            INNER JOIN user_person up ON p.id = up.person_id
-            WHERE up.user_id = ? AND p.eventor_id = ?
-            """,
-            simpleRowMapper, // Use simpleRowMapper instead of rowMapper
-            userId, eventorId
-        )
+        val persons = transaction(database) {
+            PersonTable.innerJoin(UserPersonTable2)
+                .selectAll()
+                .where { (UserPersonTable2.userId eq userId) and (PersonTable.eventorId eq eventorId) }
+                .map(::toPersonSimple)
+        }
 
         // Batch load memberships and user associations
         loadMembershipsForPersons(persons)
@@ -174,40 +197,24 @@ open class PersonRepository(
     }
     
     open fun save(person: Person): Person {
-        if (person.id == null) {
-            person.id = UUID.randomUUID()
-            jdbcTemplate.update(
-                """
-                INSERT INTO person (id, eventor_id, eventor_ref, family_name, given_name, 
-                    birth_year, nationality, gender, mobile_phone, email, last_updated)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?::gender, ?, ?, ?)
-                """,
-                person.id, person.eventorId, person.eventorRef, person.name.family, person.name.given,
-                person.birthYear, person.nationality, person.gender.name, person.mobilePhone, 
-                person.email, java.sql.Timestamp.from(person.lastUpdated)
-            )
-        } else {
-            jdbcTemplate.update(
-                """
-                INSERT INTO person (id, eventor_id, eventor_ref, family_name, given_name, 
-                    birth_year, nationality, gender, mobile_phone, email, last_updated)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?::gender, ?, ?, ?)
-                ON CONFLICT (id) DO UPDATE SET
-                    eventor_id = EXCLUDED.eventor_id,
-                    eventor_ref = EXCLUDED.eventor_ref,
-                    family_name = EXCLUDED.family_name,
-                    given_name = EXCLUDED.given_name,
-                    birth_year = EXCLUDED.birth_year,
-                    nationality = EXCLUDED.nationality,
-                    gender = EXCLUDED.gender,
-                    mobile_phone = EXCLUDED.mobile_phone,
-                    email = EXCLUDED.email,
-                    last_updated = EXCLUDED.last_updated
-                """,
-                person.id, person.eventorId, person.eventorRef, person.name.family, person.name.given,
-                person.birthYear, person.nationality, person.gender.name, person.mobilePhone, 
-                person.email, java.sql.Timestamp.from(person.lastUpdated)
-            )
+        transaction(database) {
+            if (person.id == null) {
+                person.id = UUID.randomUUID()
+            }
+
+            PersonTable.upsert {
+                it[PersonTable.id] = person.id!!
+                it[PersonTable.eventorId] = person.eventorId
+                it[PersonTable.eventorRef] = person.eventorRef
+                it[PersonTable.familyName] = person.name.family
+                it[PersonTable.givenName] = person.name.given
+                it[PersonTable.birthYear] = person.birthYear
+                it[PersonTable.nationality] = person.nationality
+                it[PersonTable.gender] = person.gender.name
+                it[PersonTable.mobilePhone] = person.mobilePhone
+                it[PersonTable.email] = person.email
+                it[PersonTable.lastUpdated] = person.lastUpdated
+            }
         }
         
         // Save memberships

@@ -1,38 +1,53 @@
 package no.stunor.origo.eventorapi.data
 
 import no.stunor.origo.eventorapi.model.Eventor
-import org.springframework.jdbc.core.JdbcTemplate
-import org.springframework.jdbc.core.RowMapper
-import org.springframework.stereotype.Repository
-import java.sql.ResultSet
+import org.jetbrains.exposed.sql.Database
+import org.jetbrains.exposed.sql.ResultRow
+import org.jetbrains.exposed.sql.Table
+import org.jetbrains.exposed.sql.selectAll
+import org.jetbrains.exposed.sql.transactions.transaction
+import javax.sql.DataSource
 
-@Repository
-open class EventorRepository(private val jdbcTemplate: JdbcTemplate) {
+private object EventorTable : Table("eventor") {
+    val id = text("id")
+    val name = text("name")
+    val federation = text("federation")
+    val baseUrl = text("base_url")
+    val eventorApiKey = text("eventor_api_key")
+}
 
-    private val rowMapper = RowMapper { rs: ResultSet, _: Int ->
-        Eventor(
-            id = rs.getString("id"),
-            name = rs.getString("name"),
-            federation = rs.getString("federation"),
-            baseUrl = rs.getString("base_url"),
-            eventorApiKey = rs.getString("eventor_api_key")
+
+open class EventorRepository(dataSource: DataSource) {
+
+    private val database = Database.connect(dataSource)
+
+    private fun toEventor(row: ResultRow): Eventor {
+        return Eventor(
+            id = row[EventorTable.id],
+            name = row[EventorTable.name],
+            federation = row[EventorTable.federation],
+            baseUrl = row[EventorTable.baseUrl],
+            eventorApiKey = row[EventorTable.eventorApiKey]
         )
     }
     
     open fun findById(id: String): Eventor? {
-        return try {
-            jdbcTemplate.queryForObject(
-                "SELECT * FROM eventor WHERE id = ?",
-                rowMapper,
-                id
-            )
-        } catch (_: Exception) {
-            null
+        return transaction(database) {
+            EventorTable
+                .selectAll()
+                .where { EventorTable.id eq id }
+                .limit(1)
+                .map(::toEventor)
+                .singleOrNull()
         }
     }
     
     open fun findAll(): List<Eventor> {
-        return jdbcTemplate.query("SELECT * FROM eventor", rowMapper)
+        return transaction(database) {
+            EventorTable
+                .selectAll()
+                .map(::toEventor)
+        }
     }
 
 }
