@@ -69,12 +69,10 @@ open class OrganisationRepository(
     
     open fun save(organisation: Organisation): Organisation {
         transaction(database) {
-            if (organisation.id == null) {
-                organisation.id = UUID.randomUUID()
-            }
-
-            OrganisationTable.upsert {
-                it[OrganisationTable.id] = organisation.id!!
+            OrganisationTable.upsert(OrganisationTable.eventorId, OrganisationTable.eventorRef,
+                onUpdateExclude = listOf(OrganisationTable.id)
+            ) {
+                it[OrganisationTable.id] = organisation.id ?: UUID.randomUUID()
                 it[OrganisationTable.eventorId] = organisation.eventorId
                 it[OrganisationTable.eventorRef] = organisation.eventorRef
                 it[OrganisationTable.name] = organisation.name
@@ -82,6 +80,7 @@ open class OrganisationRepository(
                 it[OrganisationTable.country] = organisation.country
                 it[OrganisationTable.regionId] = organisation.region?.id
             }
+            organisation.id = findByEventorRefAndEventorId(organisation.eventorRef, organisation.eventorId)!!.id
         }
         return organisation
     }

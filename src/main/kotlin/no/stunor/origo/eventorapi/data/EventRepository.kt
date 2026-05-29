@@ -154,19 +154,14 @@ class EventRepository(
     
     fun save(event: Event): Event {
         transaction(database) {
-            // Generate ID if not present
-            if (event.id == null) {
-                event.id = UUID.randomUUID()
-            }
-
-            // Convert disciplines and punching types to strings for storage
             val disciplinesStr = event.disciplines.joinToString(",") { it.name }
             val punchingTypesStr = event.punchingUnitTypes.joinToString(",") { it.name }
             val webUrlsStr = event.webUrls.joinToString("\n")
 
-            // Upsert main event record
-            EventTable.upsert {
-                it[EventTable.id] = event.id!!
+            EventTable.upsert(EventTable.eventorId, EventTable.eventorRef,
+                onUpdateExclude = listOf(EventTable.id)
+            ) {
+                it[EventTable.id] = event.id ?: UUID.randomUUID()
                 it[EventTable.eventorId] = event.eventorId
                 it[EventTable.eventorRef] = event.eventorRef
                 it[EventTable.name] = event.name
@@ -183,13 +178,8 @@ class EventRepository(
                 it[EventTable.phone] = event.phone
             }
 
-            // Retrieve the actual event ID from the database (in case of conflict, use existing ID)
-            val actualEvent = findByEventorIdAndEventorRef(event.eventorId, event.eventorRef)
-            if (actualEvent != null) {
-                event.id = actualEvent.id
-            }
+            event.id = findByEventorIdAndEventorRef(event.eventorId, event.eventorRef)!!.id
 
-            // Save organisers (many-to-many)
             event.organisers.forEach { org ->
                 org.id?.let { orgId ->
                     organisationRepository.save(org)
@@ -200,9 +190,10 @@ class EventRepository(
                 }
             }
 
-            // Save event classes
             event.classes.forEach { eventClass ->
-                ClassTable.upsert {
+                ClassTable.upsert(ClassTable.eventId, ClassTable.eventorRef,
+                    onUpdateExclude = listOf(ClassTable.id)
+                ) {
                     it[ClassTable.id] = eventClass.id
                     it[ClassTable.eventId] = event.id!!
                     it[ClassTable.eventorRef] = eventClass.eventorRef
@@ -220,13 +211,11 @@ class EventRepository(
                 }
             }
 
-            // Save documents
             event.documents.forEach { document ->
-                if (document.id == null) {
-                    document.id = UUID.randomUUID()
-                }
-                DocumentTable.upsert {
-                    it[DocumentTable.id] = document.id!!
+                DocumentTable.upsert(DocumentTable.eventId, DocumentTable.eventorRef,
+                    onUpdateExclude = listOf(DocumentTable.id)
+                ) {
+                    it[DocumentTable.id] = document.id ?: UUID.randomUUID()
                     it[DocumentTable.eventId] = event.id!!
                     it[DocumentTable.eventorRef] = document.eventorRef
                     it[DocumentTable.name] = document.name
@@ -235,13 +224,11 @@ class EventRepository(
                 }
             }
 
-            // Save races
             event.races.forEach { race ->
-                if (race.id == null) {
-                    race.id = UUID.randomUUID()
-                }
-                RaceTable.upsert {
-                    it[RaceTable.id] = race.id!!
+                RaceTable.upsert(RaceTable.eventId, RaceTable.eventorRef,
+                    onUpdateExclude = listOf(RaceTable.id)
+                ) {
+                    it[RaceTable.id] = race.id ?: UUID.randomUUID()
                     it[RaceTable.eventId] = event.id!!
                     it[RaceTable.eventorRef] = race.eventorRef
                     it[RaceTable.name] = race.name
