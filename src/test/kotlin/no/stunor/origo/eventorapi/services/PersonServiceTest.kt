@@ -1,8 +1,11 @@
 package no.stunor.origo.eventorapi.services
 
+import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import kotlinx.coroutines.test.runTest
 import no.stunor.origo.eventorapi.api.EventorService
 import no.stunor.origo.eventorapi.data.EventorRepository
 import no.stunor.origo.eventorapi.data.MembershipRepository
@@ -51,7 +54,7 @@ class PersonServiceTest {
     }
 
     @Test
-    fun `authenticate should successfully authenticate and save new person`() {
+    fun `authenticate should successfully authenticate and save new person`() = runTest {
         val eventorId = "NOR"
         val username = "testuser"
         val password = "testpass"
@@ -61,7 +64,7 @@ class PersonServiceTest {
         val convertedPerson = PersonFactory.createTestPerson()
 
         every { eventorRepository.findById(eventorId) } returns eventor
-        every { eventorService.authenticatePerson(eventor, username, password) } returns eventorPerson
+        coEvery { eventorService.authenticatePerson(eventor, username, password) } returns eventorPerson
         every { personConverter.convertPerson(eventorPerson, eventor) } returns convertedPerson
         every { personRepository.findByEventorIdAndEventorRef(eventorId, convertedPerson.eventorRef) } returns null
         every { personRepository.save(any()) } returns convertedPerson
@@ -70,12 +73,12 @@ class PersonServiceTest {
 
         assertNotNull(result)
         assertEquals(convertedPerson.eventorRef, result.eventorRef)
-        verify { eventorService.authenticatePerson(eventor, username, password) }
+        coVerify { eventorService.authenticatePerson(eventor, username, password) }
         verify { personRepository.save(any()) }
     }
 
     @Test
-    fun `authenticate should update existing person and clear old memberships`() {
+    fun `authenticate should update existing person and clear old memberships`() = runTest {
         val eventorId = "NOR"
         val username = "testuser"
         val password = "testpass"
@@ -86,7 +89,7 @@ class PersonServiceTest {
         val existingPerson = PersonFactory.createTestPerson()
 
         every { eventorRepository.findById(eventorId) } returns eventor
-        every { eventorService.authenticatePerson(eventor, username, password) } returns eventorPerson
+        coEvery { eventorService.authenticatePerson(eventor, username, password) } returns eventorPerson
         every { personConverter.convertPerson(eventorPerson, eventor) } returns convertedPerson
         every { personRepository.findByEventorIdAndEventorRef(eventorId, convertedPerson.eventorRef) } returns existingPerson
         every { membershipRepository.deleteByPersonId(existingPerson.id) } returns Unit
@@ -101,7 +104,7 @@ class PersonServiceTest {
     }
 
     @Test
-    fun `authenticate should throw EventorNotFoundException when eventor not found`() {
+    fun `authenticate should throw EventorNotFoundException when eventor not found`() = runTest {
         every { eventorRepository.findById("INVALID") } returns null
 
         assertThrows<EventorNotFoundException> {
@@ -110,10 +113,10 @@ class PersonServiceTest {
     }
 
     @Test
-    fun `authenticate should throw EventorAuthException when credentials are invalid`() {
+    fun `authenticate should throw EventorAuthException when credentials are invalid`() = runTest {
         val eventor = EventorFactory.createEventorNorway()
         every { eventorRepository.findById("NOR") } returns eventor
-        every { eventorService.authenticatePerson(eventor, "testuser", "wrongpass") } throws EventorAuthException()
+        coEvery { eventorService.authenticatePerson(eventor, "testuser", "wrongpass") } throws EventorAuthException()
 
         assertThrows<EventorAuthException> {
             personService.authenticate("NOR", "testuser", "wrongpass", UUID.randomUUID())
@@ -121,10 +124,10 @@ class PersonServiceTest {
     }
 
     @Test
-    fun `authenticate should throw EventorConnectionException on connection error`() {
+    fun `authenticate should throw EventorConnectionException on connection error`() = runTest {
         val eventor = EventorFactory.createEventorNorway()
         every { eventorRepository.findById("NOR") } returns eventor
-        every { eventorService.authenticatePerson(eventor, any(), any()) } throws EventorConnectionException()
+        coEvery { eventorService.authenticatePerson(eventor, any(), any()) } throws EventorConnectionException()
 
         assertThrows<EventorConnectionException> {
             personService.authenticate("NOR", "testuser", "testpass", UUID.randomUUID())

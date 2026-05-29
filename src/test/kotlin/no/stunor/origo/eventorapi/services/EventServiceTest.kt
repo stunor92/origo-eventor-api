@@ -1,9 +1,12 @@
 package no.stunor.origo.eventorapi.services
 
+import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import javax.xml.bind.JAXBContext
+import kotlinx.coroutines.test.runTest
 import no.stunor.origo.eventorapi.api.EventorService
 import no.stunor.origo.eventorapi.data.EventClassRepository
 import no.stunor.origo.eventorapi.data.EventRepository
@@ -63,37 +66,38 @@ class EventServiceTest {
         resultListConverter  = mockk()
 
         eventService = EventService(
-            eventorRepository    = eventorRepository,
-            eventRepository      = eventRepository,
-            eventConverter       = eventConverter,
-            feeRepository        = feeRepository,
-            eventClassRepository = eventClassRepository,
-            eventorService       = eventorService,
+            eventorRepository     = eventorRepository,
+            eventRepository       = eventRepository,
+            eventConverter        = eventConverter,
+            feeRepository         = feeRepository,
+            eventClassRepository  = eventClassRepository,
+            eventorService        = eventorService,
             organisationConverter = organisationConverter,
-            entryListConverter   = entryListConverter,
-            startListConverter   = startListConverter,
-            resultListConverter  = resultListConverter
+            entryListConverter    = entryListConverter,
+            startListConverter    = startListConverter,
+            resultListConverter   = resultListConverter,
+            batchTimeoutMs        = 5_000L
         )
     }
 
     @Test
-    fun `getEvent should retrieve and convert one-day event successfully`() {
+    fun `getEvent should retrieve and convert one-day event successfully`() = runTest {
         val eventorId = "NOR"
         val eventId = "17535"
         val eventor = EventorFactory.createEventorNorway()
         val convertedEvent = mockk<no.stunor.origo.eventorapi.model.event.Event>()
 
         every { eventorRepository.findById(eventorId) } returns eventor
-        every { eventorService.getEvent(eventor.baseUrl, eventor.eventorApiKey, eventId) } returns oneDayEvent
-        every { eventorService.getEventClasses(eventor, eventId) } returns oneDayEventClasses
-        every { eventorService.getEventDocuments(eventor.baseUrl, eventor.eventorApiKey, eventId) } returns oneDayDocuments
+        coEvery { eventorService.getEvent(eventor.baseUrl, eventor.eventorApiKey, eventId) } returns oneDayEvent
+        coEvery { eventorService.getEventClasses(eventor, eventId) } returns oneDayEventClasses
+        coEvery { eventorService.getEventDocuments(eventor.baseUrl, eventor.eventorApiKey, eventId) } returns oneDayDocuments
         every { eventRepository.findByEventorIdAndEventorRef(eventorId, eventId) } returns null
         every { organisationConverter.convertOrganisations(any(), any()) } returns mutableListOf()
         every { eventConverter.convertEvent(any(), any(), any(), any(), any(), any()) } returns convertedEvent
         every { eventRepository.save(any()) } returns convertedEvent
         every { convertedEvent.eventorRef } returns eventId
         every { convertedEvent.id } returns UUID.randomUUID()
-        every { eventorService.getEventEntryFees(eventor, eventId) } returns null
+        coEvery { eventorService.getEventEntryFees(eventor, eventId) } returns null
         every { feeRepository.findAllByEventId(any()) } returns emptyList()
         every { feeRepository.saveAll(any<List<no.stunor.origo.eventorapi.model.event.Fee>>()) } returns emptyList()
         every { eventClassRepository.findByEventId(any()) } returns emptyList()
@@ -101,13 +105,13 @@ class EventServiceTest {
         val result = eventService.getEvent(eventorId, eventId)
 
         assertNotNull(result)
-        verify { eventorService.getEvent(eventor.baseUrl, eventor.eventorApiKey, eventId) }
-        verify { eventorService.getEventClasses(eventor, eventId) }
+        coVerify { eventorService.getEvent(eventor.baseUrl, eventor.eventorApiKey, eventId) }
+        coVerify { eventorService.getEventClasses(eventor, eventId) }
         verify { eventRepository.save(any()) }
     }
 
     @Test
-    fun `getEvent should throw EventorNotFoundException when eventor not found`() {
+    fun `getEvent should throw EventorNotFoundException when eventor not found`() = runTest {
         every { eventorRepository.findById("INVALID") } returns null
 
         assertThrows<EventorNotFoundException> {
@@ -116,7 +120,7 @@ class EventServiceTest {
     }
 
     @Test
-    fun `getEntryList should return result entries when available`() {
+    fun `getEntryList should return result entries when available`() = runTest {
         val eventorId = "NOR"
         val eventId = "17535"
         val eventor = EventorFactory.createEventorNorway()
@@ -129,20 +133,20 @@ class EventServiceTest {
         )
 
         every { eventorRepository.findById(eventorId) } returns eventor
-        every { eventorService.getEventEntryList(eventor.baseUrl, eventor.eventorApiKey, eventId) } returns entryList
+        coEvery { eventorService.getEventEntryList(eventor.baseUrl, eventor.eventorApiKey, eventId) } returns entryList
         every { entryList.entry } returns emptyList()
-        every { eventorService.getEventStartList(eventor.baseUrl, eventor.eventorApiKey, eventId) } returns null
-        every { eventorService.getEventResultList(eventor.baseUrl, eventor.eventorApiKey, eventId) } returns resultList
+        coEvery { eventorService.getEventStartList(eventor.baseUrl, eventor.eventorApiKey, eventId) } returns null
+        coEvery { eventorService.getEventResultList(eventor.baseUrl, eventor.eventorApiKey, eventId) } returns resultList
         every { resultListConverter.convertEventResultList(eventor, resultList) } returns mockEntries
 
         val result = eventService.getEntryList(eventorId, eventId)
 
         assertEquals(2, result.size)
-        verify { eventorService.getEventResultList(eventor.baseUrl, eventor.eventorApiKey, eventId) }
+        coVerify { eventorService.getEventResultList(eventor.baseUrl, eventor.eventorApiKey, eventId) }
     }
 
     @Test
-    fun `getEntryList should throw EventorNotFoundException when eventor not found`() {
+    fun `getEntryList should throw EventorNotFoundException when eventor not found`() = runTest {
         every { eventorRepository.findById("INVALID") } returns null
 
         assertThrows<EventorNotFoundException> {
