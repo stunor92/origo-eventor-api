@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs cat)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(grep -v \"^--$\")",
+      "Bash(sed -n '25,35p' /Users/stunor/IdeaProjects/origo-eventor-api/src/main/kotlin/no/stunor/origo/eventorapi/data/OrganisationRepository.kt)",
+      "Bash(sed -n '25,35p' /Users/stunor/IdeaProjects/origo-eventor-api/src/main/kotlin/no/stunor/origo/eventorapi/data/MembershipRepository.kt)",
+      "Bash(sed -n '30,42p' /Users/stunor/IdeaProjects/origo-eventor-api/src/main/kotlin/no/stunor/origo/eventorapi/data/PersonRepository.kt)",
+      "Bash(sed -n '86,96p' /Users/stunor/IdeaProjects/origo-eventor-api/src/main/kotlin/no/stunor/origo/eventorapi/data/EventRepository.kt)",
+      "Bash(sed -n '7,14p' /Users/stunor/IdeaProjects/origo-eventor-api/src/main/kotlin/no/stunor/origo/eventorapi/services/converter/CalendarConverter.kt)",
+      "Bash(sed -n '14,20p' /Users/stunor/IdeaProjects/origo-eventor-api/src/main/kotlin/no/stunor/origo/eventorapi/services/converter/EntryListConverter.kt)",
+      "Bash(sed -n '9,14p' /Users/stunor/IdeaProjects/origo-eventor-api/src/main/kotlin/no/stunor/origo/eventorapi/services/converter/EventConverter.kt)",
+      "Bash(sed -n '10,15p' /Users/stunor/IdeaProjects/origo-eventor-api/src/main/kotlin/no/stunor/origo/eventorapi/services/converter/OrganisationConverter.kt)",
+      "Bash(sed -n '10,15p' /Users/stunor/IdeaProjects/origo-eventor-api/src/main/kotlin/no/stunor/origo/eventorapi/services/converter/PersonConverter.kt)",
+      "Bash(mvn dependency:tree -q)",
+      "Bash(./mvnw compile *)",
+      "Bash(git commit *)",
+      "Bash(./mvnw dependency:tree)",
+      "Bash(./mvnw dependency:tree -q)",
+      "Bash(./mvnw validate *)",
+      "Bash(./mvnw test *)",
+      "Bash(git -C /Users/stunor/IdeaProjects/origo-eventor-api add src/test/kotlin/no/stunor/origo/eventorapi/services/EventServiceTest.kt src/test/kotlin/no/stunor/origo/eventorapi/services/PersonServiceTest.kt)",
+      "Bash(git -C /Users/stunor/IdeaProjects/origo-eventor-api commit -m ' *)",
+      "Bash(./mvnw clean *)",
+      "Read(//tmp/**)",
+      "Bash(timeout 600 ./mvnw clean package -q)",
+      "Bash(echo \"Exit code: $?\")",
+      "Read(//private/tmp/**)",
+      "Bash(mvn dependency:tree -q -Dincludes=\"org.jetbrains.kotlinx:kotlinx-coroutines*\")",
+      "Bash(git -C /Users/stunor/IdeaProjects/origo-eventor-api add pom.xml src/main/kotlin/no/stunor/origo/eventorapi/services/EventService.kt src/main/kotlin/no/stunor/origo/eventorapi/services/CalendarService.kt src/main/kotlin/no/stunor/origo/eventorapi/services/PersonService.kt)",
+      "Bash(git rm *)"
+    ]
+  }
+}
