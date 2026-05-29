@@ -34,7 +34,7 @@ class EventorService(
     }
 
     private fun <T> jaxbContext(clazz: Class<T>): JAXBContext =
-        jaxbContextCache.getOrPut(clazz) { JAXBContext.newInstance(clazz) }
+        jaxbContextCache.computeIfAbsent(clazz) { JAXBContext.newInstance(it) }
 
     private inline fun <reified T> unmarshal(xml: String): T =
         jaxbContext(T::class.java).createUnmarshaller().unmarshal(xml.reader()) as T
