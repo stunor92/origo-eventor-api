@@ -154,8 +154,10 @@ class EventRepository(
     
     fun save(event: Event): Event {
         transaction(database) {
-            val disciplinesStr = event.disciplines.joinToString(",") { it.name }
-            val punchingTypesStr = event.punchingUnitTypes.joinToString(",") { it.name }
+            val disciplinesStr = event.disciplines.takeIf { it.isNotEmpty() }
+                ?.let { "{${it.joinToString(",") { d -> d.name }}}" }
+            val punchingTypesStr = event.punchingUnitTypes.takeIf { it.isNotEmpty() }
+                ?.let { "{${it.joinToString(",") { p -> p.name }}}" }
             val webUrlsStr = event.webUrls.joinToString("\n")
 
             EventTable.upsert(EventTable.eventorId, EventTable.eventorRef,
