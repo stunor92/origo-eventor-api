@@ -53,10 +53,12 @@ class EventService(
             eventRepository.findByEventorIdAndEventorRef(eventor.id, eventorEvent.eventId.content)
         }
 
-        val organisers = organisationConverter.convertOrganisations(
-            organisations = eventorEvent.organiser.organisationIdOrOrganisation,
-            eventorId     = eventorId
-        )
+        val organisers = withContext(Dispatchers.IO) {
+            organisationConverter.convertOrganisations(
+                organisations = eventorEvent.organiser.organisationIdOrOrganisation,
+                eventorId     = eventorId
+            )
+        }
         val updatedOrNewEvent = eventConverter.convertEvent(
             existingEvent = existingEvent,
             eventorEvent  = eventorEvent,
@@ -116,18 +118,20 @@ class EventService(
 
     private suspend fun fetchResultEntries(eventor: Eventor, eventId: String): List<Entry> {
         val resultList = eventorService.getEventResultList(eventor.baseUrl, eventor.eventorApiKey, eventId)
-        return resultList?.let { resultListConverter.convertEventResultList(eventor, it) } ?: emptyList()
+        return resultList?.let { withContext(Dispatchers.IO) { resultListConverter.convertEventResultList(eventor, it) } } ?: emptyList()
     }
 
     private suspend fun fetchStartEntries(eventor: Eventor, eventId: String): List<Entry> {
         val startList = eventorService.getEventStartList(eventor.baseUrl, eventor.eventorApiKey, eventId)
-        return startList?.let { startListConverter.convertEventStartList(eventor, it) } ?: emptyList()
+        return startList?.let { withContext(Dispatchers.IO) { startListConverter.convertEventStartList(eventor, it) } } ?: emptyList()
     }
 
     private suspend fun fetchEntryEntries(eventor: Eventor, eventId: String): List<Entry> {
         val entryList = eventorService.getEventEntryList(eventor.baseUrl, eventor.eventorApiKey, eventId)
             ?: return emptyList()
-        return if (!entryList.entry.isNullOrEmpty()) entryListConverter.convertEventEntryList(eventor, entryList) else emptyList()
+        return if (!entryList.entry.isNullOrEmpty())
+            withContext(Dispatchers.IO) { entryListConverter.convertEventEntryList(eventor, entryList) }
+        else emptyList()
     }
 
     suspend fun getEntryList(eventorId: String, eventId: String): List<Entry> {

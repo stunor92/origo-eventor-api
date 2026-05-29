@@ -40,7 +40,7 @@ class PersonService(
             throw EventorConnectionException()
         }
 
-        val person = personConverter.convertPerson(eventorPerson, eventor)
+        val person = withContext(Dispatchers.IO) { personConverter.convertPerson(eventorPerson, eventor) }
         val existingPerson = withContext(Dispatchers.IO) {
             personRepository.findByEventorIdAndEventorRef(eventorId, person.eventorRef)
         }

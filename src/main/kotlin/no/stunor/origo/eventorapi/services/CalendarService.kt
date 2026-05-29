@@ -121,7 +121,7 @@ class CalendarService(
             }.awaitAll()
         }.toMap()
 
-        val races = calendarConverter.convertEvents(eventList, eventor, competitorCountList, eventClassesMap)
+        val races = withContext(Dispatchers.IO) { calendarConverter.convertEvents(eventList, eventor, competitorCountList, eventClassesMap) }
         return PartialResult(races, isPartial = false)
     }
 
