@@ -11,17 +11,9 @@ import java.sql.Connection
 
 private val log = LoggerFactory.getLogger("HealthPlugin")
 
-/**
- * Configures health check endpoints for monitoring and orchestration.
- *
- * Endpoints:
- * - GET /actuator/health - Overall health status (includes DB check)
- * - GET /actuator/health/liveness - Liveness probe (app is running)
- * - GET /actuator/health/readiness - Readiness probe (app is ready to serve traffic)
- */
 fun Application.configureHealth(deps: Dependencies) {
     routing {
-        route("/actuator/health") {
+        route("/health") {
             // Overall health - checks all dependencies
             get {
                 val health = checkHealth(deps)
@@ -94,5 +86,4 @@ private fun checkDatabaseHealth(deps: Dependencies): Map<String, Any?> {
         )
     }
 }
-
 
