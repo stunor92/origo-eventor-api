@@ -113,7 +113,8 @@ class EventRepository(
 
     private fun parseWebUrls(urlsStr: String?): List<String> {
         if (urlsStr.isNullOrEmpty()) return emptyList()
-        return urlsStr.split("\n").filter { it.isNotEmpty() }
+        val normalized = urlsStr.trim().trimStart('{').trimEnd('}')
+        return normalized.split(",").map { it.trim() }.filter { it.isNotEmpty() }
     }
 
     private fun toEvent(row: ResultRow): Event {
@@ -158,7 +159,8 @@ class EventRepository(
                 ?.let { "{${it.joinToString(",") { d -> d.name }}}" }
             val punchingTypesStr = event.punchingUnitTypes.takeIf { it.isNotEmpty() }
                 ?.let { "{${it.joinToString(",") { p -> p.name }}}" }
-            val webUrlsStr = event.webUrls.joinToString("\n")
+            val webUrlsStr = event.webUrls.takeIf { it.isNotEmpty() }
+                ?.let { "{${it.joinToString(",")}}" }
 
             EventTable.upsert(EventTable.eventorId, EventTable.eventorRef,
                 onUpdateExclude = listOf(EventTable.id)
