@@ -14,6 +14,7 @@ import javax.sql.DataSource
 
 internal object PersonTable : Table("person") {
     val id = uuid("id")
+    override val primaryKey = PrimaryKey(id)
     val eventorId = text("eventor_id")
     val eventorRef = text("eventor_ref")
     val familyName = text("family_name")

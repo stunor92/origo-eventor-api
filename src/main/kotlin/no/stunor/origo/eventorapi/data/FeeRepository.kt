@@ -15,6 +15,7 @@ import javax.sql.DataSource
 
 private object FeeTable : Table("fee") {
     val id = uuid("id")
+    override val primaryKey = PrimaryKey(id)
     val eventorRef = text("eventor_ref")
     val name = text("name")
     val currency = text("currency").nullable()
@@ -32,6 +33,7 @@ private object FeeTable : Table("fee") {
 private object ClassFeeTable : Table("class_fee") {
     val feeId = uuid("fee_id").references(FeeTable.id)
     val classId = uuid("class_id").references(ClassTable.id)
+    override val primaryKey = PrimaryKey(feeId, classId)
 }
 
 class FeeRepository(dataSource: DataSource) {

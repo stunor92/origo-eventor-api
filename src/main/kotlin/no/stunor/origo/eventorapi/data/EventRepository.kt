@@ -20,6 +20,7 @@ import javax.sql.DataSource
 
 internal object EventTable : Table("event") {
     val id = uuid("id")
+    override val primaryKey = PrimaryKey(id)
     val eventorId = text("eventor_id")
     val eventorRef = text("eventor_ref")
     val name = text("name")
@@ -40,10 +41,12 @@ internal object EventTable : Table("event") {
 private object EventOrganiserTable : Table("event_organiser") {
     val eventId = uuid("event_id").references(EventTable.id)
     val organisationId = uuid("organisation_id").references(OrganisationTable.id)
+    override val primaryKey = PrimaryKey(eventId, organisationId)
 }
 
 internal object ClassTable : Table("class") {
     val id = uuid("id")
+    override val primaryKey = PrimaryKey(id)
     val eventId = uuid("event_id").references(EventTable.id)
     val eventorRef = text("eventor_ref")
     val name = text("name")
@@ -61,6 +64,7 @@ internal object ClassTable : Table("class") {
 
 private object DocumentTable : Table("document") {
     val id = uuid("id")
+    override val primaryKey = PrimaryKey(id)
     val eventId = uuid("event_id").references(EventTable.id)
     val eventorRef = text("eventor_ref")
     val name = text("name")
@@ -70,6 +74,7 @@ private object DocumentTable : Table("document") {
 
 private object RaceTable : Table("race") {
     val id = uuid("id")
+    override val primaryKey = PrimaryKey(id)
     val eventId = uuid("event_id").references(EventTable.id)
     val eventorRef = text("eventor_ref")
     val name = text("name")
