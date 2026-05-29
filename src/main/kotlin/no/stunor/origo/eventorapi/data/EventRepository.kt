@@ -92,12 +92,18 @@ class EventRepository(
 
     private fun parseDisciplines(disciplinesStr: String?): Array<Discipline> {
         if (disciplinesStr.isNullOrEmpty()) return emptyArray()
-        return disciplinesStr.split(",").map { Discipline.valueOf(it.trim()) }.toTypedArray()
+        val normalized = disciplinesStr.trim().trimStart('{').trimEnd('}')
+        return normalized.split(",").mapNotNull { token ->
+            runCatching { Discipline.valueOf(token.trim()) }.getOrNull()
+        }.toTypedArray()
     }
 
     private fun parsePunchingTypes(typesStr: String?): Array<PunchingUnitType> {
         if (typesStr.isNullOrEmpty()) return emptyArray()
-        return typesStr.split(",").map { PunchingUnitType.valueOf(it.trim()) }.toTypedArray()
+        val normalized = typesStr.trim().trimStart('{').trimEnd('}')
+        return normalized.split(",").mapNotNull { token ->
+            runCatching { PunchingUnitType.valueOf(token.trim()) }.getOrNull()
+        }.toTypedArray()
     }
 
     private fun parseWebUrls(urlsStr: String?): List<String> {
