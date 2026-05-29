@@ -75,8 +75,7 @@ class EventServiceTest {
             organisationConverter = organisationConverter,
             entryListConverter    = entryListConverter,
             startListConverter    = startListConverter,
-            resultListConverter   = resultListConverter,
-            batchTimeoutMs        = 5_000L
+            resultListConverter   = resultListConverter
         )
     }
 

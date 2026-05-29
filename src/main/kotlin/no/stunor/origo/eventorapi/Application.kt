@@ -12,6 +12,7 @@ fun Application.module() {
     configureSerialization()
     configureAuth(environment.config)
     configureStatusPages()
+    configureHealth(deps)
     configureRouting(deps)
     configureShutdownHook(deps)
 }

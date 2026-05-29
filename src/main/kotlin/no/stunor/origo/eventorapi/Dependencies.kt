@@ -119,8 +119,7 @@ class Dependencies(config: ApplicationConfig) {
         organisationConverter = organisationConverter,
         entryListConverter    = entryListConverter,
         startListConverter    = startListConverter,
-        resultListConverter   = resultListConverter,
-        batchTimeoutMs        = batchTimeoutMs
+        resultListConverter   = resultListConverter
     )
 
     val calendarService = CalendarService(

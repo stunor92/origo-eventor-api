@@ -13,10 +13,6 @@ import java.util.UUID
 
 fun Application.configureRouting(deps: Dependencies) {
     routing {
-        // ── Health ─────────────────────────────────────────────────────────────
-        get("/actuator/health") {
-            call.respond(mapOf("status" to "UP"))
-        }
 
         route("/rest") {
             authenticate("jwt-optional", optional = true) {

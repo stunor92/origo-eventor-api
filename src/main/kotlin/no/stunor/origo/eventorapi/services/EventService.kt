@@ -33,7 +33,6 @@ class EventService(
     private val entryListConverter: EntryListConverter,
     private val startListConverter: StartListConverter,
     private val resultListConverter: ResultListConverter,
-    private val batchTimeoutMs: Long = 30_000L
 ) {
     private val log = LoggerFactory.getLogger(this.javaClass)
 
