@@ -11,21 +11,23 @@ import no.stunor.origo.eventorapi.model.event.entry.TeamMember
 import no.stunor.origo.eventorapi.model.organisation.Organisation
 import org.iof.eventor.EntryList
 
+typealias OrgCache = Map<String, Organisation?>
+
 class EntryListConverter(
     private val organisationConverter: OrganisationConverter,
     private val personConverter: PersonConverter
 ) {
 
-    fun convertEventEntryList(eventor: Eventor, entryList: EntryList): List<Entry> {
+    fun convertEventEntryList(eventor: Eventor, entryList: EntryList, orgCache: OrgCache = emptyMap()): List<Entry> {
         val result = mutableListOf<Entry>()
         for (entry in entryList.entry) {
-            if (entry.competitor != null) result.addAll(convertPersonEventEntries(entry, eventor))
-            else if (entry.teamCompetitor != null) result.addAll(convertTeamEventEntries(entry, eventor))
+            if (entry.competitor != null) result.addAll(convertPersonEventEntries(entry, eventor, orgCache))
+            else if (entry.teamCompetitor != null) result.addAll(convertTeamEventEntries(entry, eventor, orgCache))
         }
         return result
     }
 
-    private fun convertPersonEventEntries(entry: org.iof.eventor.Entry, eventor: Eventor): List<Entry> {
+    private fun convertPersonEventEntries(entry: org.iof.eventor.Entry, eventor: Eventor, orgCache: OrgCache): List<Entry> {
         return entry.eventRaceId.map { raceId ->
             PersonEntry(
                 raceEventorRef = raceId.content,
@@ -33,9 +35,9 @@ class EntryListConverter(
                 personEventorRef = entry.competitor.person.personId?.content,
                 name = personConverter.convertPersonName(entry.competitor.person.personName),
                 organisation = if (entry.competitor.organisation != null)
-                    organisationConverter.convertOrganisation(entry.competitor.organisation, eventor.id)
+                    organisationConverter.convertOrganisation(entry.competitor.organisation, eventor.id, orgCache)
                 else
-                    organisationConverter.convertOrganisation(entry.competitor.organisationId, eventor.id),
+                    organisationConverter.convertOrganisation(entry.competitor.organisationId, eventor.id, orgCache),
                 birthYear = entry.competitor.person.birthDate?.date?.content?.substring(0, 4)?.toInt(),
                 nationality = entry.competitor.person.nationality?.country?.alpha3?.value,
                 gender = personConverter.convertGender(entry.competitor.person.sex),
@@ -48,13 +50,13 @@ class EntryListConverter(
         }
     }
 
-    private fun convertTeamEventEntries(entry: org.iof.eventor.Entry, eventor: Eventor): List<Entry> {
+    private fun convertTeamEventEntries(entry: org.iof.eventor.Entry, eventor: Eventor, orgCache: OrgCache): List<Entry> {
         return entry.teamCompetitor[0].entryEntryFee.map { race ->
             TeamEntry(
                 raceEventorRef = race.eventRaceId,
                 classEventorRef = entry.entryClass[0].eventClassId.content,
                 name = entry.teamName.content,
-                organisations = convertTeamOrganisations(entry.teamCompetitor, eventor),
+                organisations = convertTeamOrganisations(entry.teamCompetitor, eventor, orgCache),
                 bib = entry.bibNumber?.content,
                 teamMembers = convertTeamMembers(entry.teamCompetitor),
                 startTime = null, finishTime = null, result = null,
@@ -63,11 +65,11 @@ class EntryListConverter(
         }
     }
 
-    private fun convertTeamOrganisations(teamCompetitors: List<org.iof.eventor.TeamCompetitor>, eventor: Eventor): MutableList<Organisation> {
+    private fun convertTeamOrganisations(teamCompetitors: List<org.iof.eventor.TeamCompetitor>, eventor: Eventor, orgCache: OrgCache): MutableList<Organisation> {
         val result = mutableListOf<Organisation>()
         for (tc in teamCompetitors) {
             if (tc.organisationId != null && !result.any { it.eventorRef == tc.organisationId.content }) {
-                organisationConverter.convertOrganisation(tc.organisationId, eventor.id)?.let { result.add(it) }
+                organisationConverter.convertOrganisation(tc.organisationId, eventor.id, orgCache)?.let { result.add(it) }
             }
         }
         return result

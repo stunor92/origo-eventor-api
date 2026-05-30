@@ -9,6 +9,7 @@ import no.stunor.origo.eventorapi.model.event.entry.ResultStatus
 import no.stunor.origo.eventorapi.model.event.entry.SplitTime
 import no.stunor.origo.eventorapi.model.event.entry.TeamEntry
 import no.stunor.origo.eventorapi.model.event.entry.TeamMember
+import no.stunor.origo.eventorapi.model.organisation.Organisation
 import org.iof.eventor.Event
 import org.iof.eventor.ResultList
 import java.text.DateFormat
@@ -23,14 +24,14 @@ class ResultListConverter(
 ) {
 
     @Throws(NumberFormatException::class, ParseException::class)
-    fun convertEventResultList(eventor: Eventor, resultList: ResultList): List<Entry> {
+    fun convertEventResultList(eventor: Eventor, resultList: ResultList, orgCache: Map<String, Organisation?> = emptyMap()): List<Entry> {
         val competitorList = mutableListOf<Entry>()
 
         for (classResult in resultList.classResult) {
             for (personOrTeamResult in classResult.personResultOrTeamResult) {
                 when (personOrTeamResult) {
-                    is org.iof.eventor.PersonResult -> handlePersonResult(eventor, resultList.event, classResult, personOrTeamResult, competitorList)
-                    is org.iof.eventor.TeamResult -> competitorList.add(convertTeamResult(eventor, resultList.event, classResult, personOrTeamResult))
+                    is org.iof.eventor.PersonResult -> handlePersonResult(eventor, resultList.event, classResult, personOrTeamResult, competitorList, orgCache)
+                    is org.iof.eventor.TeamResult -> competitorList.add(convertTeamResult(eventor, resultList.event, classResult, personOrTeamResult, orgCache))
                 }
             }
         }
@@ -42,15 +43,16 @@ class ResultListConverter(
         event: Event,
         classResult: org.iof.eventor.ClassResult,
         personResult: org.iof.eventor.PersonResult,
-        competitorList: MutableList<Entry>
+        competitorList: MutableList<Entry>,
+        orgCache: Map<String, Organisation?>
     ) {
         val raceResults:  List<org.iof.eventor.RaceResult> = personResult.raceResult
         if (raceResults.isNotEmpty()) {
             for (raceResult in raceResults) {
-                competitorList.add(convertMultiDayPersonResult(eventor, classResult, personResult, raceResult))
+                competitorList.add(convertMultiDayPersonResult(eventor, classResult, personResult, raceResult, orgCache))
             }
         } else {
-            competitorList.add(convertOneDayPersonResult(eventor, event, classResult, personResult))
+            competitorList.add(convertOneDayPersonResult(eventor, event, classResult, personResult, orgCache))
         }
     }
 
@@ -59,7 +61,8 @@ class ResultListConverter(
         eventor: Eventor,
         event: Event,
         classResult: org.iof.eventor.ClassResult,
-        personResult: org.iof.eventor.PersonResult
+        personResult: org.iof.eventor.PersonResult,
+        orgCache: Map<String, Organisation?>
     ): Entry {
         return PersonEntry(
             raceEventorRef = event.eventRace[0].eventRaceId.content,
@@ -67,9 +70,9 @@ class ResultListConverter(
             personEventorRef = if (personResult.person.personId != null) personResult.person.personId.content else null,
             name = personConverter.convertPersonName(personResult.person.personName),
             organisation = if(personResult.organisation != null)
-                organisationConverter.convertOrganisation(personResult.organisation, eventor.id)
+                organisationConverter.convertOrganisation(personResult.organisation, eventor.id, orgCache)
             else
-                organisationConverter.convertOrganisation(personResult.organisationId, eventor.id),
+                organisationConverter.convertOrganisation(personResult.organisationId, eventor.id, orgCache),
             birthYear = if (personResult.person.birthDate != null) personResult.person.birthDate.date.content.substring(
                 0,
                 4
@@ -97,7 +100,8 @@ class ResultListConverter(
         eventor: Eventor,
         classResult: org.iof.eventor.ClassResult,
         personResult: org.iof.eventor.PersonResult,
-        raceResult: org.iof.eventor.RaceResult
+        raceResult: org.iof.eventor.RaceResult,
+        orgCache: Map<String, Organisation?>
     ): Entry {
         return PersonEntry(
             raceEventorRef = raceResult.eventRaceId.content,
@@ -105,9 +109,9 @@ class ResultListConverter(
             personEventorRef = if (personResult.person.personId != null) personResult.person.personId.content else null,
             name = personConverter.convertPersonName(personResult.person.personName),
             organisation = if(personResult.organisation != null)
-                organisationConverter.convertOrganisation(personResult.organisation, eventor.id)
+                organisationConverter.convertOrganisation(personResult.organisation, eventor.id, orgCache)
             else
-                organisationConverter.convertOrganisation(personResult.organisationId, eventor.id),
+                organisationConverter.convertOrganisation(personResult.organisationId, eventor.id, orgCache),
             birthYear = if (personResult.person.birthDate != null) personResult.person.birthDate.date.content.substring(
                 0,
                 4
@@ -147,7 +151,8 @@ class ResultListConverter(
         eventor: Eventor,
         event: Event,
         classResult: org.iof.eventor.ClassResult,
-        teamResult: org.iof.eventor.TeamResult
+        teamResult: org.iof.eventor.TeamResult,
+        orgCache: Map<String, Organisation?>
     ): Entry {
         return TeamEntry(
             raceEventorRef = event.eventRace[0].eventRaceId.content,
@@ -155,7 +160,8 @@ class ResultListConverter(
             name = teamResult.teamName.content,
             organisations =  organisationConverter.convertOrganisations(
                 organisations = teamResult.organisationIdOrOrganisationOrCountryId,
-                eventorId = eventor.id
+                eventorId = eventor.id,
+                orgCache = orgCache
             ),
             teamMembers = convertTeamMembers(eventor, teamResult.teamMemberResult),
             bib = if (teamResult.bibNumber != null) teamResult.bibNumber.content else null,

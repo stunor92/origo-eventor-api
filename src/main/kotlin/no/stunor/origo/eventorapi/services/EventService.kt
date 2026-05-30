@@ -1,14 +1,13 @@
 package no.stunor.origo.eventorapi.services
 
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.withContext
 import no.stunor.origo.eventorapi.api.EventorService
 import no.stunor.origo.eventorapi.data.EventClassRepository
 import no.stunor.origo.eventorapi.data.EventRepository
 import no.stunor.origo.eventorapi.data.EventorRepository
 import no.stunor.origo.eventorapi.data.FeeRepository
+import no.stunor.origo.eventorapi.data.OrganisationRepository
 import no.stunor.origo.eventorapi.exception.EventNotFoundException
 import no.stunor.origo.eventorapi.exception.EventorNotFoundException
 import no.stunor.origo.eventorapi.model.Eventor
@@ -19,6 +18,7 @@ import no.stunor.origo.eventorapi.model.event.entry.Entry
 import no.stunor.origo.eventorapi.model.event.entry.EntryStatus
 import no.stunor.origo.eventorapi.model.event.entry.PersonEntry
 import no.stunor.origo.eventorapi.model.event.entry.TeamEntry
+import no.stunor.origo.eventorapi.model.organisation.Organisation
 import no.stunor.origo.eventorapi.services.converter.*
 import org.slf4j.LoggerFactory
 
@@ -30,6 +30,7 @@ class EventService(
     private val eventClassRepository: EventClassRepository,
     private val eventorService: EventorService,
     private val organisationConverter: OrganisationConverter,
+    private val organisationRepository: OrganisationRepository,
     private val entryListConverter: EntryListConverter,
     private val startListConverter: StartListConverter,
     private val resultListConverter: ResultListConverter,
@@ -37,9 +38,7 @@ class EventService(
     private val log = LoggerFactory.getLogger(this.javaClass)
 
     suspend fun getEvent(eventorId: String, eventorRef: String): Event {
-        val eventor = withContext(Dispatchers.IO) {
-            eventorRepository.findById(eventorId)
-        } ?: throw EventorNotFoundException()
+        val eventor = eventorRepository.findById(eventorId) ?: throw EventorNotFoundException()
 
         val (eventorEvent, eventClassList, documentList) = coroutineScope {
             val eventDef = async { eventorService.getEvent(eventor.baseUrl, eventor.eventorApiKey, eventorRef) }
@@ -48,16 +47,12 @@ class EventService(
             Triple(eventDef.await() ?: throw EventNotFoundException(), classDef.await(), docDef.await())
         }
 
-        val existingEvent = withContext(Dispatchers.IO) {
-            eventRepository.findByEventorIdAndEventorRef(eventor.id, eventorEvent.eventId.content)
-        }
+        val existingEvent = eventRepository.findByEventorIdAndEventorRef(eventor.id, eventorEvent.eventId.content)
 
-        val organisers = withContext(Dispatchers.IO) {
-            organisationConverter.convertOrganisations(
-                organisations = eventorEvent.organiser.organisationIdOrOrganisation,
-                eventorId     = eventorId
-            )
-        }
+        val organisers = organisationConverter.convertOrganisations(
+            organisations = eventorEvent.organiser.organisationIdOrOrganisation,
+            eventorId     = eventorId
+        )
         val updatedOrNewEvent = eventConverter.convertEvent(
             existingEvent = existingEvent,
             eventorEvent  = eventorEvent,
@@ -67,8 +62,8 @@ class EventService(
             eventor       = eventor
         )
 
-        val event = withContext(Dispatchers.IO) { eventRepository.save(updatedOrNewEvent) }
-        val savedClasses = withContext(Dispatchers.IO) { eventClassRepository.findByEventId(event.id) }
+        val event = eventRepository.save(updatedOrNewEvent)
+        val savedClasses = eventClassRepository.findByEventId(event.id)
         val savedClassesByRef = savedClasses.associateBy { it.eventorRef }
 
         val entryFees = eventorService.getEventEntryFees(eventor, eventorRef)
@@ -80,7 +75,7 @@ class EventService(
             }.toMutableList()
         }
 
-        val existingFees = withContext(Dispatchers.IO) { feeRepository.findAllByEventId(event.id) }
+        val existingFees = feeRepository.findAllByEventId(event.id)
         val existingByRef = existingFees.associateBy { it.eventorRef }
 
         val mergedFees = convertedFees.map { fee ->
@@ -106,51 +101,49 @@ class EventService(
 
         val incomingRefs = convertedFees.map { it.eventorRef }.toSet()
         val obsolete = existingFees.filter { it.eventorRef !in incomingRefs }
-        withContext(Dispatchers.IO) {
-            if (obsolete.isNotEmpty()) feeRepository.deleteAll(obsolete)
-            feeRepository.saveAll(mergedFees)
-        }
+        if (obsolete.isNotEmpty()) feeRepository.deleteAll(obsolete)
+        feeRepository.saveAll(mergedFees)
         return event
     }
 
     // ── Entry fetching ────────────────────────────────────────────────────────
 
-    private suspend fun fetchResultEntries(eventor: Eventor, eventId: String): List<Entry> {
+    private suspend fun fetchResultEntries(eventor: Eventor, eventId: String, orgCache: Map<String, Organisation?>): List<Entry> {
         val resultList = eventorService.getEventResultList(eventor.baseUrl, eventor.eventorApiKey, eventId)
-        return resultList?.let { withContext(Dispatchers.IO) { resultListConverter.convertEventResultList(eventor, it) } } ?: emptyList()
+        return resultList?.let { resultListConverter.convertEventResultList(eventor, it, orgCache) } ?: emptyList()
     }
 
-    private suspend fun fetchStartEntries(eventor: Eventor, eventId: String): List<Entry> {
+    private suspend fun fetchStartEntries(eventor: Eventor, eventId: String, orgCache: Map<String, Organisation?>): List<Entry> {
         val startList = eventorService.getEventStartList(eventor.baseUrl, eventor.eventorApiKey, eventId)
-        return startList?.let { withContext(Dispatchers.IO) { startListConverter.convertEventStartList(eventor, it) } } ?: emptyList()
+        return startList?.let { startListConverter.convertEventStartList(eventor, it, orgCache) } ?: emptyList()
     }
 
-    private suspend fun fetchEntryEntries(eventor: Eventor, eventId: String): List<Entry> {
+    private suspend fun fetchEntryEntries(eventor: Eventor, eventId: String, orgCache: Map<String, Organisation?>): List<Entry> {
         val entryList = eventorService.getEventEntryList(eventor.baseUrl, eventor.eventorApiKey, eventId)
             ?: return emptyList()
         return if (!entryList.entry.isNullOrEmpty())
-            withContext(Dispatchers.IO) { entryListConverter.convertEventEntryList(eventor, entryList) }
+            entryListConverter.convertEventEntryList(eventor, entryList, orgCache)
         else emptyList()
     }
 
     suspend fun getEntryList(eventorId: String, eventId: String): List<Entry> {
-        val eventor = withContext(Dispatchers.IO) {
-            eventorRepository.findById(eventorId)
-        } ?: throw EventorNotFoundException()
+        val eventor = eventorRepository.findById(eventorId) ?: throw EventorNotFoundException()
+
+        val orgCache = organisationRepository.findAllByEventorId(eventor.id)
 
         val (entryEntries, startEntries, resultEntries) = coroutineScope {
             val entryDef  = async {
-                runCatching { fetchEntryEntries(eventor, eventId) }
+                runCatching { fetchEntryEntries(eventor, eventId, orgCache) }
                     .onFailure { log.warn("Failed to fetch entry entries for event {}: {}", eventId, it.message) }
                     .getOrDefault(emptyList())
             }
             val startDef  = async {
-                runCatching { fetchStartEntries(eventor, eventId) }
+                runCatching { fetchStartEntries(eventor, eventId, orgCache) }
                     .onFailure { log.warn("Failed to fetch start entries for event {}: {}", eventId, it.message) }
                     .getOrDefault(emptyList())
             }
             val resultDef = async {
-                runCatching { fetchResultEntries(eventor, eventId) }
+                runCatching { fetchResultEntries(eventor, eventId, orgCache) }
                     .onFailure { log.warn("Failed to fetch result entries for event {}: {}", eventId, it.message) }
                     .getOrDefault(emptyList())
             }

@@ -6,6 +6,7 @@ import no.stunor.origo.eventorapi.model.event.entry.EntryStatus
 import no.stunor.origo.eventorapi.model.event.entry.PersonEntry
 import no.stunor.origo.eventorapi.model.event.entry.TeamEntry
 import no.stunor.origo.eventorapi.model.event.entry.TeamMember
+import no.stunor.origo.eventorapi.model.organisation.Organisation
 
 
 
@@ -14,14 +15,14 @@ class StartListConverter(
     private val personConverter: PersonConverter
 ) {
 
-    fun convertEventStartList(eventor: Eventor, startList: org.iof.eventor.StartList): List<Entry> {
+    fun convertEventStartList(eventor: Eventor, startList: org.iof.eventor.StartList, orgCache: Map<String, Organisation?> = emptyMap()): List<Entry> {
         val entries = mutableListOf<Entry>()
 
         for (classStart in startList.classStart) {
             for (personOrTeamStart in classStart.personStartOrTeamStart) {
                 when (personOrTeamStart) {
-                    is org.iof.eventor.PersonStart -> convertPersonStart(eventor, startList.event, classStart, personOrTeamStart, entries)
-                    is org.iof.eventor.TeamStart -> entries.add(convertTeamStart(eventor, startList.event, classStart, personOrTeamStart))
+                    is org.iof.eventor.PersonStart -> convertPersonStart(eventor, startList.event, classStart, personOrTeamStart, entries, orgCache)
+                    is org.iof.eventor.TeamStart -> entries.add(convertTeamStart(eventor, startList.event, classStart, personOrTeamStart, orgCache))
                 }
             }
         }
@@ -32,14 +33,15 @@ class StartListConverter(
         event: org.iof.eventor.Event,
         classStart: org.iof.eventor.ClassStart,
         personStart: org.iof.eventor.PersonStart,
-        entries: MutableList<Entry>
+        entries: MutableList<Entry>,
+        orgCache: Map<String, Organisation?>
     ) {
         if (event.eventRace.size > 1) {
             for (raceStart in personStart.raceStart) {
-                entries.add(convertMultiDayPersonStart(eventor, classStart, personStart, raceStart))
+                entries.add(convertMultiDayPersonStart(eventor, classStart, personStart, raceStart, orgCache))
             }
         } else {
-            entries.add(convertOneDayPersonStart(eventor, event, classStart, personStart))
+            entries.add(convertOneDayPersonStart(eventor, event, classStart, personStart, orgCache))
         }
     }
 
@@ -47,7 +49,8 @@ class StartListConverter(
         eventor: Eventor,
         classStart: org.iof.eventor.ClassStart,
         personStart: org.iof.eventor.PersonStart,
-        raceStart: org.iof.eventor.RaceStart
+        raceStart: org.iof.eventor.RaceStart,
+        orgCache: Map<String, Organisation?>
     ): Entry {
         return PersonEntry(
             raceEventorRef = raceStart.eventRaceId.content,
@@ -57,8 +60,8 @@ class StartListConverter(
             else null,
             name = personConverter.convertPersonName(personStart.person.personName),
             organisation = if (personStart.organisation != null)
-                organisationConverter.convertOrganisation(personStart.organisation, eventor.id)
-            else organisationConverter.convertOrganisation(personStart.organisationId, eventor.id),
+                organisationConverter.convertOrganisation(personStart.organisation, eventor.id, orgCache)
+            else organisationConverter.convertOrganisation(personStart.organisationId, eventor.id, orgCache),
             birthYear = if (personStart.person.birthDate != null)
                 personStart.person.birthDate.date.content.substring(YEAR_SUBSTRING_START, YEAR_SUBSTRING_END).toInt()
             else null,
@@ -86,7 +89,8 @@ class StartListConverter(
         eventor: Eventor,
         event: org.iof.eventor.Event,
         classStart: org.iof.eventor.ClassStart,
-        personStart: org.iof.eventor.PersonStart
+        personStart: org.iof.eventor.PersonStart,
+        orgCache: Map<String, Organisation?>
     ): Entry {
         return PersonEntry(
             raceEventorRef = event.eventRace[0].eventRaceId.content,
@@ -94,8 +98,8 @@ class StartListConverter(
             personEventorRef = if (personStart.person.personId != null) personStart.person.personId.content else null,
             name = personConverter.convertPersonName(personStart.person.personName),
             organisation = if (personStart.organisation != null)
-                organisationConverter.convertOrganisation(personStart.organisation, eventor.id)
-            else organisationConverter.convertOrganisation(personStart.organisationId, eventor.id),
+                organisationConverter.convertOrganisation(personStart.organisation, eventor.id, orgCache)
+            else organisationConverter.convertOrganisation(personStart.organisationId, eventor.id, orgCache),
             birthYear = if (personStart.person.birthDate != null)
                 personStart.person.birthDate.date.content.substring(YEAR_SUBSTRING_START, YEAR_SUBSTRING_END).toInt()
             else null,
@@ -120,7 +124,8 @@ class StartListConverter(
         eventor: Eventor,
         event: org.iof.eventor.Event,
         classStart: org.iof.eventor.ClassStart,
-        teamStart: org.iof.eventor.TeamStart
+        teamStart: org.iof.eventor.TeamStart,
+        orgCache: Map<String, Organisation?>
     ): Entry {
         return TeamEntry(
             raceEventorRef = event.eventRace[0].eventRaceId.content,
@@ -128,7 +133,8 @@ class StartListConverter(
             name = teamStart.teamName.content,
             organisations = organisationConverter.convertOrganisations(
                 organisations = teamStart.organisationIdOrOrganisationOrCountryId,
-                eventorId = eventor.id
+                eventorId = eventor.id,
+                orgCache = orgCache
             ),
             teamMembers = convertTeamMembers(eventor, teamStart.teamMemberStart),
             bib = if (teamStart.bibNumber != null) teamStart.bibNumber.content else null,

@@ -53,19 +53,4 @@ open class RegionRepository(dataSource: DataSource) {
                 .singleOrNull()
         }
     }
-    
-    open fun save(region: Region): Region {
-        transaction(database) {
-            RegionTable.upsert(RegionTable.eventorId, RegionTable.eventorRef,
-                onUpdateExclude = listOf(RegionTable.id)
-            ) {
-                it[RegionTable.id] = region.id ?: UUID.randomUUID()
-                it[RegionTable.eventorId] = region.eventorId
-                it[RegionTable.eventorRef] = region.eventorRef
-                it[RegionTable.name] = region.name
-            }
-            region.id = findByEventorRefAndEventorId(region.eventorRef, region.eventorId)!!.id
-        }
-        return region
-    }
 }

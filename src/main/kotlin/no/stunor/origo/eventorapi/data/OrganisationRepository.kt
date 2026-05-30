@@ -1,5 +1,6 @@
 package no.stunor.origo.eventorapi.data
 
+import no.stunor.origo.eventorapi.model.Region
 import no.stunor.origo.eventorapi.model.organisation.Organisation
 import no.stunor.origo.eventorapi.model.organisation.OrganisationType
 import org.jetbrains.exposed.sql.Database
@@ -56,6 +57,33 @@ open class OrganisationRepository(
         }
     }
     
+    open fun findAllByEventorId(eventorId: String): Map<String, Organisation> {
+        return transaction(database) {
+            (OrganisationTable leftJoin RegionTable)
+                .selectAll()
+                .where { OrganisationTable.eventorId eq eventorId }
+                .associate { row ->
+                    val region = row[OrganisationTable.regionId]?.let {
+                        Region(
+                            id = row[RegionTable.id],
+                            eventorId = row[RegionTable.eventorId],
+                            eventorRef = row[RegionTable.eventorRef],
+                            name = row[RegionTable.name]
+                        )
+                    }
+                    row[OrganisationTable.eventorRef] to Organisation(
+                        id = row[OrganisationTable.id],
+                        eventorId = row[OrganisationTable.eventorId],
+                        eventorRef = row[OrganisationTable.eventorRef],
+                        name = row[OrganisationTable.name],
+                        type = OrganisationType.valueOf(row[OrganisationTable.type]),
+                        country = row[OrganisationTable.country],
+                        region = region
+                    )
+                }
+        }
+    }
+
     open fun findById(id: UUID): Organisation? {
         return transaction(database) {
             OrganisationTable

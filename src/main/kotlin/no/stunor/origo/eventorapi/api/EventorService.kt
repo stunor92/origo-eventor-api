@@ -23,8 +23,7 @@ class EventorService(
     private val semaphore: Semaphore,
     private val eventListCache:       Cache<String, EventList>,
     private val competitorCountCache: Cache<String, CompetitorCountList>,
-    private val eventClassCache:      Cache<String, EventClassList>,
-    private val orgEntriesCache:      Cache<String, EntryList>
+    private val eventClassCache:      Cache<String, EventClassList>
 ) {
     private val log = LoggerFactory.getLogger(this.javaClass)
     private val dateFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd")
@@ -113,58 +112,6 @@ class EventorService(
         val xml = get(url, apiKey = eventor.eventorApiKey)
         val result: CompetitorCountList = unmarshal(xml)
         competitorCountCache.put(cacheKey, result)
-        return result
-    }
-
-    suspend fun getPersonalStarts(
-        eventor: Eventor,
-        personId: String,
-        eventId: String?,
-        fromDate: LocalDate?,
-        toDate: LocalDate?
-    ): StartListList? {
-        val url = eventor.baseUrl + "api/starts/person" +
-                "?personId=$personId" +
-                "&fromDate=${if (fromDate == null) "" else dateFormat.format(fromDate)}" +
-                "&toDate=${if (toDate == null) "" else dateFormat.format(toDate)}" +
-                "&eventIds=${eventId ?: ""}"
-        val xml = get(url, apiKey = eventor.eventorApiKey)
-        return unmarshal(xml)
-    }
-
-    suspend fun getPersonalResults(
-        eventor: Eventor,
-        personId: String,
-        eventId: String?,
-        fromDate: LocalDate?,
-        toDate: LocalDate?
-    ): ResultListList? {
-        val url = eventor.baseUrl + "api/results/person" +
-                "?personId=$personId" +
-                "&fromDate=${if (fromDate == null) "" else dateFormat.format(fromDate)}" +
-                "&toDate=${if (toDate == null) "" else dateFormat.format(toDate)}" +
-                "&eventIds=${eventId ?: ""}"
-        val xml = get(url, apiKey = eventor.eventorApiKey)
-        return unmarshal(xml)
-    }
-
-    suspend fun getOrganisationEntries(
-        eventor: Eventor,
-        organisations: List<String>,
-        eventId: String?,
-        fromDate: LocalDate?,
-        toDate: LocalDate?
-    ): EntryList {
-        val url = eventor.baseUrl + "api/entries" +
-                "?organisationIds=${organisations.joinToString(",")}" +
-                "&fromEventDate=${if (fromDate == null) "" else dateFormat.format(fromDate)}" +
-                "&toEventDate=${if (toDate == null) "" else dateFormat.format(toDate)}" +
-                "&includeEventElement=true&eventIds=${eventId ?: ""}"
-        val cacheKey = "${eventor.id}:$url"
-        orgEntriesCache.getIfPresent(cacheKey)?.let { return it }
-        val xml = get(url, apiKey = eventor.eventorApiKey)
-        val result: EntryList = unmarshal(xml)
-        orgEntriesCache.put(cacheKey, result)
         return result
     }
 

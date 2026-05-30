@@ -12,32 +12,41 @@ class OrganisationConverter(
     private val regionRepository: RegionRepository
 ) {
 
-    fun convertOrganisations(organisations: List<Any>, eventorId: String): MutableList<Organisation> {
+    fun convertOrganisations(organisations: List<Any>, eventorId: String, orgCache: Map<String, Organisation?> = emptyMap()): MutableList<Organisation> {
         val result = mutableListOf<Organisation>()
         for (organisation in organisations) {
-            convertOrganisation(organisation, eventorId)?.let { result.add(it) }
+            convertOrganisation(organisation, eventorId, orgCache)?.let { result.add(it) }
         }
         return result
     }
 
-    fun convertOrganisation(organisation: Any?, eventorId: String): Organisation? {
+    fun convertOrganisation(organisation: Any?, eventorId: String, orgCache: Map<String, Organisation?> = emptyMap()): Organisation? {
         if (organisation == null) return null
         return when (organisation) {
-            is org.iof.eventor.Organisation -> mergeOrganisation(organisation, eventorId)
-            is org.iof.eventor.OrganisationId -> organisationRepository.findByEventorRefAndEventorId(organisation.content, eventorId)
-            is String -> organisationRepository.findByEventorRefAndEventorId(organisation, eventorId)
-
+            is org.iof.eventor.Organisation -> mergeOrganisationWithCache(organisation, eventorId, orgCache)
+            is org.iof.eventor.OrganisationId -> orgCache[organisation.content]
+                ?: organisationRepository.findByEventorRefAndEventorId(organisation.content, eventorId)
+            is String -> orgCache[organisation]
+                ?: organisationRepository.findByEventorRefAndEventorId(organisation, eventorId)
             else -> null
         }
     }
 
-    private fun mergeOrganisation(organisation: org.iof.eventor.Organisation, eventorId: String): Organisation? {
+    private fun mergeOrganisationWithCache(organisation: org.iof.eventor.Organisation, eventorId: String, orgCache: Map<String, Organisation?>): Organisation? {
         if (organisation.organisationId == null) return null
         val eventorRef = organisation.organisationId.content
-        val existing = organisationRepository.findByEventorRefAndEventorId(eventorRef, eventorId)
-        val country = if (organisation.country != null && organisation.country.alpha3 != null && organisation.country.alpha3.value.length == 3) {
-            organisation.country.alpha3.value
-        } else eventorId
+        val country = if (organisation.country != null && organisation.country.alpha3 != null && organisation.country.alpha3.value.length == 3)
+            organisation.country.alpha3.value else eventorId
+
+        val existing = orgCache[eventorRef] ?: organisationRepository.findByEventorRefAndEventorId(eventorRef, eventorId)
+        if (existing != null) {
+            existing.name = organisation.name.content
+            existing.type = convertOrganisationType(organisation)
+            existing.country = country
+            // region already populated from cache JOIN; skip extra DB lookup
+            return existing
+        }
+
         val region = if (organisation.parentOrganisation != null) {
             organisation.parentOrganisation.organisationId?.content?.let {
                 regionRepository.findByEventorRefAndEventorId(it, eventorId)
@@ -45,15 +54,6 @@ class OrganisationConverter(
             }
         } else regionRepository.findByEventorRefAndEventorId(eventorRef, eventorId)
 
-        if (existing != null) {
-            // Update mutable fields
-            existing.name = organisation.name.content
-            existing.type = convertOrganisationType(organisation)
-            existing.country = country
-            existing.region = region
-            return existing
-        }
-        // Create new (will need explicit save or cascade PERSIST)
         return Organisation(
             eventorRef = eventorRef,
             eventorId = eventorId,
@@ -63,6 +63,9 @@ class OrganisationConverter(
             region = region
         )
     }
+
+    private fun mergeOrganisation(organisation: org.iof.eventor.Organisation, eventorId: String): Organisation? =
+        mergeOrganisationWithCache(organisation, eventorId, emptyMap())
 
     private fun convertOrganisationType(organisation: org.iof.eventor.Organisation): OrganisationType = when (organisation.organisationTypeId.content) {
         "1" -> OrganisationType.Federation

@@ -1,16 +1,12 @@
 package no.stunor.origo.eventorapi.services
 
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
+    import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import no.stunor.origo.eventorapi.api.EventorService
 import no.stunor.origo.eventorapi.data.EventorRepository
-import no.stunor.origo.eventorapi.data.OrganisationRepository
 import no.stunor.origo.eventorapi.data.PersonRepository
-import no.stunor.origo.eventorapi.data.RegionRepository
 import no.stunor.origo.eventorapi.exception.EventorNotFoundException
 import no.stunor.origo.eventorapi.model.Eventor
 import no.stunor.origo.eventorapi.model.PartialResult
@@ -25,8 +21,6 @@ import java.util.UUID
 class CalendarService(
     private val personRepository: PersonRepository,
     private val eventorRepository: EventorRepository,
-    private val organisationRepository: OrganisationRepository,
-    private val regionRepository: RegionRepository,
     private val eventorService: EventorService,
     private val calendarConverter: CalendarConverter,
     private val batchTimeoutMs: Long = 30_000L
@@ -39,7 +33,7 @@ class CalendarService(
         classifications: List<EventClassificationEnum>?,
         userId: UUID?
     ): PartialResult<List<CalendarRace>> {
-        val eventorList = withContext(Dispatchers.IO) { eventorRepository.findAll() }
+        val eventorList = eventorRepository.findAll()
 
         val results = coroutineScope {
             eventorList.map { eventor ->
@@ -73,8 +67,7 @@ class CalendarService(
         classifications: List<EventClassificationEnum>?,
         userId: UUID?
     ): PartialResult<List<CalendarRace>> {
-        val eventor = withContext(Dispatchers.IO) { eventorRepository.findById(eventorId) }
-            ?: throw EventorNotFoundException()
+        val eventor = eventorRepository.findById(eventorId) ?: throw EventorNotFoundException()
         val persons = resolvePersonsForEventor(eventor.id, userId)
         val races = getEventListInternal(eventor, from, to, organisations, classifications, persons)
         return PartialResult(filterRacesByDateRange(races.data, from, to), isPartial = races.isPartial)
@@ -82,9 +75,7 @@ class CalendarService(
 
     private suspend fun resolvePersonsForEventor(eventorId: String, userId: UUID?): List<Person> {
         return if (userId != null) {
-            withContext(Dispatchers.IO) {
-                personRepository.findAllByUsersAndEventorId(userId = userId, eventorId = eventorId)
-            }
+            personRepository.findAllByUsersAndEventorId(userId = userId, eventorId = eventorId)
         } else {
             emptyList()
         }
@@ -121,7 +112,7 @@ class CalendarService(
             }.awaitAll()
         }.toMap()
 
-        val races = withContext(Dispatchers.IO) { calendarConverter.convertEvents(eventList, eventor, competitorCountList, eventClassesMap) }
+        val races = calendarConverter.convertEvents(eventList, eventor, competitorCountList, eventClassesMap)
         return PartialResult(races, isPartial = false)
     }
 

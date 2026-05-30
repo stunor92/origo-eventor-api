@@ -156,22 +156,6 @@ open class PersonRepository(
                 .singleOrNull()
         }
     }
-    
-    open fun findAllByUsers(userId: UUID): List<Person> {
-        val persons = transaction(database) {
-            PersonTable.innerJoin(UserPersonTable)
-                .selectAll()
-                .where { UserPersonTable.userId eq userId }
-                .map(::toPersonSimple)
-        }
-
-        // Batch load memberships and user associations
-        loadMembershipsForPersons(persons)
-        loadUsersForPersons(persons)
-
-        return persons
-    }
-    
     open fun findAllByUsersAndEventorId(userId: UUID, eventorId: String): List<Person> {
         val persons = transaction(database) {
             PersonTable.innerJoin(UserPersonTable)

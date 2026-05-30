@@ -17,7 +17,6 @@ import no.stunor.origo.eventorapi.services.PersonService
 import no.stunor.origo.eventorapi.services.converter.*
 import no.stunor.origo.eventorapi.validation.InputValidator
 import org.iof.eventor.CompetitorCountList
-import org.iof.eventor.EntryList
 import org.iof.eventor.EventClassList
 import org.iof.eventor.EventList
 import java.util.concurrent.TimeUnit
@@ -70,11 +69,6 @@ class Dependencies(config: ApplicationConfig) {
         .expireAfterWrite(cacheConfig.propertyOrNull("eventClassesTtlMinutes")?.getString()?.toLong() ?: 30, TimeUnit.MINUTES)
         .build()
 
-    private val orgEntriesCache: Cache<String, EntryList> = Caffeine.newBuilder()
-        .maximumSize(500)
-        .expireAfterWrite(cacheConfig.propertyOrNull("organisationEntriesTtlMinutes")?.getString()?.toLong() ?: 5, TimeUnit.MINUTES)
-        .build()
-
     // ── Eventor HTTP client ───────────────────────────────────────────────────
     private val eventorConfig = config.config("app.eventor")
 
@@ -93,8 +87,7 @@ class Dependencies(config: ApplicationConfig) {
         semaphore            = semaphore,
         eventListCache       = eventListCache,
         competitorCountCache = competitorCountCache,
-        eventClassCache      = eventClassCache,
-        orgEntriesCache      = orgEntriesCache
+        eventClassCache      = eventClassCache
     )
 
     // ── Converters ────────────────────────────────────────────────────────────
@@ -117,19 +110,18 @@ class Dependencies(config: ApplicationConfig) {
         eventClassRepository  = eventClassRepository,
         eventorService        = eventorService,
         organisationConverter = organisationConverter,
+        organisationRepository = organisationRepository,
         entryListConverter    = entryListConverter,
         startListConverter    = startListConverter,
         resultListConverter   = resultListConverter
     )
 
     val calendarService = CalendarService(
-        personRepository       = personRepository,
-        eventorRepository      = eventorRepository,
-        organisationRepository = organisationRepository,
-        regionRepository       = regionRepository,
-        eventorService         = eventorService,
-        calendarConverter      = calendarConverter,
-        batchTimeoutMs         = batchTimeoutMs
+        personRepository  = personRepository,
+        eventorRepository = eventorRepository,
+        eventorService    = eventorService,
+        calendarConverter = calendarConverter,
+        batchTimeoutMs    = batchTimeoutMs
     )
 
     val personService = PersonService(
