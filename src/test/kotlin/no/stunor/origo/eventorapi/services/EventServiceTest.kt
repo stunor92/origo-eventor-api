@@ -12,6 +12,7 @@ import no.stunor.origo.eventorapi.data.EventClassRepository
 import no.stunor.origo.eventorapi.data.EventRepository
 import no.stunor.origo.eventorapi.data.EventorRepository
 import no.stunor.origo.eventorapi.data.FeeRepository
+import no.stunor.origo.eventorapi.data.OrganisationRepository
 import no.stunor.origo.eventorapi.exception.EventorNotFoundException
 import no.stunor.origo.eventorapi.model.event.entry.EntryStatus
 import no.stunor.origo.eventorapi.model.event.entry.PersonEntry
@@ -34,6 +35,7 @@ class EventServiceTest {
     private lateinit var eventClassRepository: EventClassRepository
     private lateinit var eventorService: EventorService
     private lateinit var organisationConverter: OrganisationConverter
+    private lateinit var organisationRepository: OrganisationRepository
     private lateinit var entryListConverter: EntryListConverter
     private lateinit var startListConverter: StartListConverter
     private lateinit var resultListConverter: ResultListConverter
@@ -61,6 +63,7 @@ class EventServiceTest {
         feeRepository        = mockk()
         eventorService       = mockk()
         organisationConverter = mockk()
+        organisationRepository = mockk()
         entryListConverter   = mockk()
         startListConverter   = mockk()
         resultListConverter  = mockk()
@@ -73,6 +76,7 @@ class EventServiceTest {
             eventClassRepository  = eventClassRepository,
             eventorService        = eventorService,
             organisationConverter = organisationConverter,
+            organisationRepository = organisationRepository,
             entryListConverter    = entryListConverter,
             startListConverter    = startListConverter,
             resultListConverter   = resultListConverter
@@ -132,6 +136,7 @@ class EventServiceTest {
         )
 
         every { eventorRepository.findById(eventorId) } returns eventor
+        every { organisationRepository.findAllByEventorId(eventor.id) } returns emptyMap()
         coEvery { eventorService.getEventEntryList(eventor.baseUrl, eventor.eventorApiKey, eventId) } returns entryList
         every { entryList.entry } returns emptyList()
         coEvery { eventorService.getEventStartList(eventor.baseUrl, eventor.eventorApiKey, eventId) } returns null
