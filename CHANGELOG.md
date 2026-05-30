@@ -1,5 +1,45 @@
 # Changelog
 
+## [14.0.0](https://github.com/stunor92/origo-eventor-api/compare/v13.1.0...v14.0.0) (2026-05-30)
+
+
+### ⚠ BREAKING CHANGES
+
+* migrate to Ktor and exposed ([#329](https://github.com/stunor92/origo-eventor-api/issues/329))
+
+### Features
+
+* add Dependencies class to replace Koin ([13f3a5f](https://github.com/stunor92/origo-eventor-api/commit/13f3a5fb426b2bbf5253d32bb7d82ce3720b8da1))
+* load .env file at startup via dotenv-kotlin ([3d92c7a](https://github.com/stunor92/origo-eventor-api/commit/3d92c7ad25e2961f03e53045cf8b4499d6452a40))
+* migrate to Ktor and exposed ([#329](https://github.com/stunor92/origo-eventor-api/issues/329)) ([d66fac2](https://github.com/stunor92/origo-eventor-api/commit/d66fac299b315ceed117d879266ef397262dee2e))
+
+
+### Bug Fixes
+
+* declare primaryKey on all Exposed Table objects ([b670359](https://github.com/stunor92/origo-eventor-api/commit/b670359cfb2ebdadcaf8655ed6f3b0cba1d53e00))
+* nomalized tables ([4593187](https://github.com/stunor92/origo-eventor-api/commit/45931877e053da78a7f4a789946793e9a3eb3ecd))
+* parse PostgreSQL array notation in disciplines and punching types ([a5cec54](https://github.com/stunor92/origo-eventor-api/commit/a5cec54dbce4a6d61c83daa644e7986ae4e322e9))
+* read and write webUrls as PostgreSQL array literal ([193271f](https://github.com/stunor92/origo-eventor-api/commit/193271ff2dfab1d19225efff8a2968a19629b6cb))
+* remove original JAR before copy ([#331](https://github.com/stunor92/origo-eventor-api/issues/331)) ([8951aca](https://github.com/stunor92/origo-eventor-api/commit/8951aca3a657549e5b35c3433ddafe3b68dd95c2))
+* remove unused batchTimeoutMs from EventService, fix Health.kt type error ([360d2ea](https://github.com/stunor92/origo-eventor-api/commit/360d2ea8105afa727a6b7de610b6c822ca26cee4))
+* use computeIfAbsent for atomic JAXBContext caching ([f64f61e](https://github.com/stunor92/origo-eventor-api/commit/f64f61eb8c645858c4c0168785b61f71fc698bdc))
+* use http for localhost Bruno environment ([e7b2f52](https://github.com/stunor92/origo-eventor-api/commit/e7b2f52d8af0c1b07e58b56017b8e3aaffcc0ec7))
+* use Maven wrapper in Dockerfile ([#330](https://github.com/stunor92/origo-eventor-api/issues/330)) ([65086df](https://github.com/stunor92/origo-eventor-api/commit/65086df4cab579a48f759e64e2b69aa018231054))
+* use natural keys as upsert conflict targets instead of generated id ([1aed657](https://github.com/stunor92/origo-eventor-api/commit/1aed6579c090d6f3b7fceb594059769833336ff1))
+* wrap blocking converter calls in Dispatchers.IO, align coroutines-test version ([4e68d2f](https://github.com/stunor92/origo-eventor-api/commit/4e68d2ffc90288d0556a78a6fd8e302570136f98))
+* write disciplines and punching types as PostgreSQL array literals ([82badbe](https://github.com/stunor92/origo-eventor-api/commit/82badbeb693ffe0a43e75406595d255333852d3c))
+
+
+### Performance Improvements
+
+* eliminate N+1 DB queries in entry-list and remove dead code ([7aa1f9c](https://github.com/stunor92/origo-eventor-api/commit/7aa1f9c3208a4bdbe2cd3abee9b98b003dc00866))
+
+
+### Documentation
+
+* add design spec for simplification and Eventor concurrency optimization ([8150794](https://github.com/stunor92/origo-eventor-api/commit/8150794fc211cbcc14b86f1d2d0bc2e04a1c2c77))
+* add implementation plan for simplification and Eventor optimization ([bd56168](https://github.com/stunor92/origo-eventor-api/commit/bd561685ccad241d2b9c507700e615f6a6ce24bb))
+
 ## [13.1.0](https://github.com/stunor92/origo-eventor-api/compare/v13.0.0...v13.1.0) (2026-05-05)
 
 
