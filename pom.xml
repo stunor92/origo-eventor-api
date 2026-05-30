@@ -4,7 +4,7 @@
 
     <groupId>no.stunor.origo</groupId>
     <artifactId>eventor-api</artifactId>
-    <version>14.0.2</version>
+    <version>14.0.3-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <properties>
