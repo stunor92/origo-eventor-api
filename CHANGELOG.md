@@ -1,5 +1,12 @@
 # Changelog
 
+## [14.0.4](https://github.com/stunor92/origo-eventor-api/compare/v14.0.3...v14.0.4) (2026-05-30)
+
+
+### Bug Fixes
+
+* Prometheus imports ([95ca41d](https://github.com/stunor92/origo-eventor-api/commit/95ca41d74bbb39bd0a6b518f40578a8543688b92))
+
 ## [14.0.3](https://github.com/stunor92/origo-eventor-api/compare/v14.0.2...v14.0.3) (2026-05-30)
 
 
