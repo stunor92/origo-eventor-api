@@ -1,5 +1,12 @@
 # Changelog
 
+## [14.0.7](https://github.com/stunor92/origo-eventor-api/compare/v14.0.6...v14.0.7) (2026-05-30)
+
+
+### Bug Fixes
+
+* timeout import ([a24407f](https://github.com/stunor92/origo-eventor-api/commit/a24407fd2f66fdaaee767da2d0fcb7b1094cfe74))
+
 ## [14.0.6](https://github.com/stunor92/origo-eventor-api/compare/v14.0.5...v14.0.6) (2026-05-30)
 
 
