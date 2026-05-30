@@ -1,6 +1,6 @@
 package no.stunor.origo.eventorapi.services
 
-    import kotlinx.coroutines.async
+import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withTimeoutOrNull
@@ -101,18 +101,7 @@ class CalendarService(
         log.info("Fetching competitor-count for persons {} and organisations {}.", personIds, organisationIds)
         val competitorCountList = eventorService.getCompetitorCounts(eventor, events, organisationIds, personIds)
 
-        log.info("Fetching event classes for {} events", events.size)
-        val eventClassesMap = coroutineScope {
-            events.map { eventId ->
-                async {
-                    runCatching { eventId to eventorService.getEventClasses(eventor, eventId) }
-                        .onFailure { log.warn("Failed to fetch event classes for event {}: {}", eventId, it.message) }
-                        .getOrNull() ?: (eventId to null)
-                }
-            }.awaitAll()
-        }.toMap()
-
-        val races = calendarConverter.convertEvents(eventList, eventor, competitorCountList, eventClassesMap)
+        val races = calendarConverter.convertEvents(eventList, eventor, competitorCountList)
         return PartialResult(races, isPartial = false)
     }
 
