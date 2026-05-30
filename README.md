@@ -1,37 +1,26 @@
 # Eventor API
 
-This Ktor web application converts Eventor IOF-XML files to JSON format, which is used in OriGo apps.
-The application provides REST API endpoints to fetch and convert event data from various Eventor federations.
-
-## Overview
-
-The OriGo EventorApi acts as a bridge between Eventor's IOF-XML format and OriGo applications, providing:
-- Event information (details, classes, documents)
-- Entry lists with intelligent merging from multiple sources
-- Start lists with timing information
-- Result lists with split times
-- Fee structures with class associations
-- Organization and participant data
+This Ktor web application converts Eventor IOF-XML data to JSON format for use in OriGo apps.
+It acts as a bridge between Eventor's IOF-XML format and OriGo applications, providing REST endpoints to fetch and convert event data from multiple Eventor federations.
 
 ## Features
 
-- **Multi-source data merging**: Intelligently combines entry lists, start lists, and result lists
-- **Event management**: Supports single race events, multi-race events, and relay events
-- **Fee handling**: Manages entry fees with class-specific pricing
-- **Database persistence**: Caches event data for improved performance
-- **RESTful API**: Clean JSON responses for easy integration
-- **Multi-federation support**: Works with different Eventor federations (Norway, Sweden, etc.)
+- **Multi-source entry list merging**: Combines entry, start, and result lists with intelligent deduplication and status tracking
+- **Calendar view**: Fetches event calendars across all configured federations in parallel, with per-federation timeouts
+- **Competitor counts**: Enriches calendar events with entry counts per class
+- **Organisation pre-fetching**: Eliminates N+1 queries by loading all organisations for a federation in one query before conversion
+- **In-memory caching**: Caffeine caches for event lists, event classes, and competitor counts
+- **Multi-federation support**: Works with any Eventor instance (Norway, Sweden, etc.)
 
 ## Technology Stack
 
-- **Language**: Kotlin (primary) with Java (JAXB-generated classes)
+- **Language**: Kotlin
 - **Framework**: Ktor 3.x
 - **Build Tool**: Maven
 - **Java Version**: Java 21
-- **Database**: PostgreSQL with Exposed + JDBC
-- **API Documentation**: OpenAPI/Swagger endpoints
+- **Database**: PostgreSQL with Jetbrains Exposed (DSL)
 - **XML Processing**: JAXB for IOF-XML schema
-- **Authentication**: JWT tokens
+- **Authentication**: JWT (Supabase)
 
 ## Prerequisites
 
@@ -45,145 +34,150 @@ The OriGo EventorApi acts as a bridge between Eventor's IOF-XML format and OriGo
 src/
 ├── main/
 │   ├── kotlin/no/stunor/origo/eventorapi/
-│   │   ├── api/                    # External API clients (Eventor API)
-│   │   ├── controller/             # REST controllers
-│   │   ├── data/                   # JDBC repositories
-│   │   ├── exception/              # Custom exceptions
-│   │   ├── model/                  # Data models and domain objects
-│   │   │   ├── event/              # Event-related models
-│   │   │   ├── organisation/       # Organization models
-│   │   │   └── person/             # Person and membership models
-│   │   ├── persistence/            # Custom Hibernate types
-│   │   │   └── hibernate/          # Array and enum type handlers
-│   │   ├── security/               # JWT and authentication
-│   │   └── services/               # Business logic
-│   │       └── converter/          # IOF-XML to JSON converters
+│   │   ├── api/            # Eventor HTTP client (EventorService)
+│   │   ├── data/           # Exposed-based repositories
+│   │   ├── exception/      # Custom exceptions
+│   │   ├── model/          # Domain models
+│   │   │   ├── calendar/   # Calendar / race models
+│   │   │   ├── event/      # Event-related models
+│   │   │   ├── organisation/
+│   │   │   └── person/
+│   │   ├── plugins/        # Ktor plugin wiring (routing, auth, serialisation)
+│   │   ├── services/       # Business logic
+│   │   │   └── converter/  # IOF-XML → domain model converters
+│   │   └── validation/     # Input validation
 │   └── resources/
-│       ├── IOF.xsd                 # IOF-XML schema (JAXB source)
-│       ├── application.yml         # Production configuration
-│       └── application-local.yml   # Local development config (not in git)
+│       ├── IOF.xsd         # IOF-XML schema (JAXB source)
+│       └── application.conf # HOCON configuration
 └── test/
-    └── kotlin/                     # Unit and integration tests
+    └── kotlin/             # Tests
 ```
 
 ## Architecture
 
 ### Data Flow
 
-1. **API Request** → REST Controller receives request
-2. **Service Layer** → EventService orchestrates data fetching
-3. **Eventor API** → EventorService calls external Eventor API
-4. **Converters** → Transform IOF-XML to domain models
-5. **Repository** → Persist/retrieve data from PostgreSQL
+1. **HTTP Request** → Ktor routing (`plugins/Routing.kt`)
+2. **Service Layer** → `EventService` / `CalendarService` / `PersonService`
+3. **Eventor API** → `EventorService` calls external Eventor HTTP API
+4. **Converters** → Transform IOF-XML objects to domain models
+5. **Repository** → Persist/retrieve supporting data (persons, organisations, events) from PostgreSQL
 6. **Response** → Return JSON to client
 
 ### Key Components
 
-- **EventService**: Main business logic for event data management
-  - Fetches events from Eventor API
-  - Merges entry lists from multiple sources (entry/start/result)
-  - Handles fee and class associations
-  - Intelligent deduplication and status tracking
-
-- **Repositories**: JDBC-based data access layer
-  - EventRepository: Event CRUD operations
-  - EventClassRepository: Event class management
-  - FeeRepository: Fee structure management
-  - PersonRepository, OrganisationRepository, etc.
-
-- **Converters**: Transform Eventor IOF-XML to JSON
-  - EventConverter: Event details
-  - EntryListConverter, StartListConverter, ResultListConverter
-  - FeeConverter: Entry fee structures
-
-### Database Schema
-
-The application uses PostgreSQL with custom enum types:
-- `event_type`, `event_classification`, `event_status`
-- `class_type`, `class_gender`
-- Array types for disciplines, punching units, timestamps
-
-Key tables:
-- `event`: Event information
-- `class`: Event classes
-- `fee`: Entry fees with many-to-many to classes
-- `person`, `organisation`: Participant data
-- `user`: Application users with JWT authentication
+- **EventService**: Fetches event details and entry lists from Eventor, merges entry/start/result data
+- **CalendarService**: Fetches event calendars across all federations in parallel with timeout handling
+- **PersonService**: Authenticates an Eventor person and persists the association to the app user
+- **EventorService**: Thin HTTP client for the Eventor REST API with Caffeine caching and semaphore-based rate limiting
+- **Repositories**: Exposed DSL-based access to PostgreSQL (persons, organisations, events, fees, etc.)
+- **Converters**: Stateless transformers from IOF-XML JAXB objects to domain models; accept an `orgCache` map to avoid per-entry DB lookups
 
 ## Configuration
 
-The application uses Spring profiles for configuration:
-- `application.yml` - Production configuration using environment variables
-- `application-local.yml` - Local development configuration (not in version control)
-- `application-local.yml.example` - Template for local development configuration
+The application uses HOCON (`application.conf`). All secrets are supplied via environment variables; the file ships safe defaults for local development.
 
-### Local Development Setup
+### Environment Variables
 
-1. Copy the example configuration file:
-   ```bash
-   cp src/main/resources/application-staging.yml src/main/resources/application-staging.yml
-   ```
+| Variable | Default (local) | Description |
+|---|---|---|
+| `PORT` | `8080` | HTTP listen port |
+| `SUPABASE_URL` | `http://127.0.0.1:54321` | Supabase URL (used for JWT verification) |
+| `POSTGRES_DB` | `jdbc:postgresql://127.0.0.1:54322/postgres` | JDBC connection URL |
+| `POSTGRES_USER` | `postgres` | Database username |
+| `POSTGRES_PASSWORD` | `postgres` | Database password |
 
-2. Update `application-local.yml` with your local values:
-   - Set your local PostgreSQL password
-   - Set a JWT secret (minimum 32 characters)
+### Eventor tuning (in `application.conf`)
 
-3. The `application-local.yml` file is ignored by git to prevent committing credentials
+```hocon
+app.eventor {
+    maxConcurrentRequests = 10   # semaphore permits for outbound HTTP
+    requestTimeoutMs      = 20000
+    batchTimeoutMs        = 30000  # per-federation timeout in CalendarService
+}
+```
 
-### Required Environment Variables (Production)
+### Cache TTLs (in `application.conf`)
 
-- `POSTGRES_DB` - PostgreSQL database connection URL
-- `POSTGRES_USER` - Database username
-- `POSTGRES_PASSWORD` - Database password
-- `JWT_SECRET` - Secret key for JWT token signing (minimum 32 characters)
+```hocon
+app.cache {
+    eventListTtlMinutes          = 30
+    competitorCountTtlMinutes    = 5
+    eventClassesTtlMinutes       = 30
+}
+```
 
-### Security Notes
+## Build & Run
 
-⚠️ **Important**: Never commit actual secrets or production credentials to version control.
+```bash
+# Generate JAXB classes from IOF.xsd and compile
+mvn generate-sources compile
 
-- Use the `application-local.yml.example` template for local development
-- The actual `application-local.yml` file is ignored by git
-- Always use environment variables for production deployments
-- Never commit credentials, API keys, or secrets to the repository
+# Full build with tests
+mvn clean verify
 
-## Recent Changes
+# Build runnable fat jar
+mvn clean package
 
-### Spring Boot 4.0.0 Migration (December 2025)
+# Run via Maven
+mvn exec:java
 
-The project has been upgraded to Spring Boot 4.0.0 and migrated from JPA/Hibernate to native JDBC:
+# Run fat jar
+java -jar target/eventor-api-*.jar
+```
 
-**Database Layer Changes:**
-- Migrated from JPA entities to JDBC-based repositories using `JdbcTemplate`
-- Implemented custom Hibernate types for PostgreSQL arrays and enums
-- Added `EventClassRepository` for managing event classes
-- Improved query performance with direct SQL
+## API Endpoints
 
-**Benefits:**
-- Better control over SQL queries and performance
-- Simplified array and enum handling with PostgreSQL
-- Reduced complexity and boilerplate code
-- More predictable transaction behavior
+All endpoints are under `/rest`.
 
-**Breaking Changes:**
-- Removed JPA annotations from models
-- Repository interfaces now use custom JDBC implementations
-- Some test annotations changed (e.g., `@DataJpaTest` no longer used)
+### Event endpoints
 
-### Entry List Merging
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/rest/event/{eventorId}/{eventorRef}` | optional JWT | Event details with classes and fees |
+| `GET` | `/rest/event/{eventorId}/{eventId}/entry-list` | optional JWT | Merged entry list (entry + start + result) |
 
-The `EventService` now implements intelligent entry list merging:
+### Calendar endpoints
 
-**Strategy:**
-1. Fetch entry list (registered participants)
-2. Fetch start list as fallback (if entry list is empty)
-3. Fetch result list (actual participants with results)
-4. Merge data with result taking priority
-5. Mark registered but non-participating entries as "Deregistered"
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/rest/event-list/{eventorId}` | optional JWT | Calendar for a specific Eventor federation |
+| `GET` | `/rest/event-list` | optional JWT | Calendar across all configured federations |
 
-**Deduplication:**
-- Primary key: Person ID or Team name
-- Fallback: Composite key (name + organization + class + race)
-- Handles split times, punching units, and team members
+**Query parameters** for calendar endpoints:
+- `from` (required) — start date, `YYYY-MM-DD`
+- `to` (required) — end date, `YYYY-MM-DD`
+- `organisations` (optional, repeatable) — filter by organisation IDs
+- `classifications` (optional) — comma-separated: `Championship`, `National`, `Regional`, `Local`, `Club`
+
+Returns `200 OK` when all federations responded, `206 Partial Content` when one or more timed out.
+
+### Person endpoint
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `POST` | `/rest/person/{eventorId}` | required JWT | Authenticate Eventor credentials and link person to app user |
+
+Credentials are passed as `username` and `password` request headers.
+
+## Usage Examples
+
+```bash
+# Get event details
+curl "http://localhost:8080/rest/event/NOR/12345"
+
+# Get entry list
+curl "http://localhost:8080/rest/event/NOR/12345/entry-list"
+
+# Get Norwegian calendar for June 2025
+curl "http://localhost:8080/rest/event-list/NOR?from=2025-06-01&to=2025-06-30"
+
+# Link an Eventor person to an app user (JWT required)
+curl -X POST "http://localhost:8080/rest/person/NOR" \
+  -H "Authorization: Bearer <jwt>" \
+  -H "username: myeventoruser" \
+  -H "password: mypassword"
+```
 
 ## Development Notes
 
@@ -194,15 +188,6 @@ The project generates Java classes from `IOF.xsd`:
 - Don't manually edit generated classes
 - Run `mvn generate-sources` after schema changes
 
-### Database Enums
-
-PostgreSQL enum types must match Kotlin enum values:
-- `event_classification` → `EventClassificationEnum`
-- `event_status` → `EventStatusEnum`
-- `event_type` → `EventFormEnum`
-- `class_type` → `EventClassTypeEnum`
-- `class_gender` → `ClassGender`
-
 ### Testing
 
 ```bash
@@ -211,190 +196,47 @@ mvn test
 
 # Run specific test
 mvn test -Dtest=EventClassRepositoryTest
-
-# Run with debug output
-mvn test -X
 ```
 
-### Common Issues
+### Repository Pattern
 
-**Issue**: `Unresolved reference 'WebMvcTest'`
-- Some old test files use deprecated Spring Boot test annotations
-- These are being gradually updated to `@SpringBootTest`
-
-
-## Build the project
-```bash
-# Clean and compile
-mvn clean compile
-
-# Generate JAXB classes from IOF.xsd
-mvn generate-sources
-
-# Full build with tests
-mvn clean verify
-
-# Build runnable fat jar
-mvn clean package
-```
-
-## Run the application
-```bash
-# Run directly via Maven
-mvn exec:java
-
-# Build and run shaded jar
-mvn clean package
-java -jar target/eventor-api-13.1.0.jar
-
-# Run tests
-mvn test
-```
-
-## API Endpoints
-
-### Event Endpoints
-
-- `GET /api/eventor/{eventorId}/event/{eventId}` - Get event details with classes and fees
-- `GET /api/eventor/{eventorId}/event/{eventId}/entries` - Get entry list with merged data
-- `GET /api/eventor/{eventorId}/event/{eventId}/starts` - Get start list
-- `GET /api/eventor/{eventorId}/event/{eventId}/results` - Get result list
-
-### Person Endpoints
-
-- `GET /api/eventor/{eventorId}/person/{personId}/events` - Get person's events
-
-### Organization Endpoints
-
-- `GET /api/eventor/{eventorId}/organisation/{organisationId}` - Get organization details
-
-### Authentication Endpoints
-
-- `POST /api/auth/login` - Authenticate and receive JWT token
-- `POST /api/users` - Register new user
-
-### API Documentation
-
-When running locally, access the interactive API documentation at:
-- Swagger UI: `http://localhost:8080/rest/swagger-ui.html`
-- OpenAPI JSON: `http://localhost:8080/rest/v3/api-docs`
-
-## Usage Examples
-
-### Using Bruno (Recommended)
-
-The project includes a Bruno collection in the `bruno/` directory with pre-configured requests for all endpoints.
-
-### Using curl
-
-```bash
-# Get event details
-curl -X GET "http://localhost:8080/rest/api/eventor/NOR/event/12345"
-
-# Get entry list
-curl -X GET "http://localhost:8080/rest/api/eventor/NOR/event/12345/entries"
-
-# Authenticate
-curl -X POST "http://localhost:8080/rest/api/auth/login" \
-  -H "Content-Type: application/json" \
-  -d '{"username":"user","password":"password"}'
-```
+Repositories use Jetbrains Exposed `transaction {}` blocks with the DSL API:
+- Upsert via `Table.upsert {}` with natural-key conflict targets
+- Batch queries use `inList` predicates to avoid N+1 patterns
+- `OrganisationRepository.findAllByEventorId()` does a single LEFT JOIN with `RegionTable` and returns a `Map<eventorRef, Organisation>` used as an in-memory cache throughout conversion
 
 ## Contributing
 
-This project follows [Conventional Commits](https://www.conventionalcommits.org/) specification for commit messages and PR titles.
+This project follows [Conventional Commits](https://www.conventionalcommits.org/) for commit messages and PR titles.
 
-### Code Conventions
-
-**Kotlin Style:**
-- Use Kotlin idioms and conventions
-- Prefer data classes for models
-- Use nullable types (`?`) appropriately
-- Use `when` expressions over `if-else` chains
-- Follow Spring Boot annotation conventions
-
-**Testing:**
-- Use JUnit 5 for tests
-- Use MockK for Kotlin mocking
-- Test class names should end with `Test`
-- Use descriptive test names with backticks: `` `test description` ``
-- Mock external dependencies (repositories, services)
-
-**Repository Pattern:**
-- Use `JdbcTemplate` for database operations
-- Implement upsert logic with `ON CONFLICT DO UPDATE`
-- Create custom `RowMapper` for entity mapping
-- Handle nullable fields appropriately
-
-### Commit Message Format
-
-All PR titles must follow the Conventional Commits format:
-
-```
-<type>: <description>
-```
-
-or with optional scope:
-
-```
-<type>(<scope>): <description>
-```
-
-**Allowed types:**
-- `feat`: A new feature
-- `fix`: A bug fix
-- `docs`: Documentation only changes
-- `style`: Changes that do not affect the meaning of the code (white-space, formatting, etc)
-- `refactor`: A code change that neither fixes a bug nor adds a feature
-- `perf`: A code change that improves performance
-- `test`: Adding missing tests or correcting existing tests
-- `build`: Changes that affect the build system or external dependencies
-- `ci`: Changes to CI configuration files and scripts
-- `chore`: Other changes that don't modify src or test files
-- `revert`: Reverts a previous commit
-
-**Examples:**
-- `feat: add support for relay events`
-- `fix: correct time calculation in results`
-- `docs: update API documentation`
-- `chore(deps): update spring boot to 4.0.0`
+**Allowed types:** `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`
 
 ### Contribution Steps
 
 1. Fork the repository
-2. Create a new branch (`git checkout -b feature-branch`)
-3. Make your changes with appropriate tests
-4. Ensure the build passes: `mvn clean install`
-5. Commit your changes using conventional commit format
-6. Push to the branch (`git push origin feature-branch`)
-7. Create a new Pull Request with a title following the conventional commit format
+2. Create a feature branch (`git checkout -b feature/my-feature`)
+3. Make changes with appropriate tests
+4. Ensure the build passes: `mvn clean verify`
+5. Commit using conventional commit format
+6. Push and open a Pull Request
 
 ## Release Process
 
 This project uses [Release Please](https://github.com/googleapis/release-please) to automate releases:
 
-- Release Please creates PRs with titles like `chore(main): release X.Y.Z`
-- Release PRs ending with **SNAPSHOT** are **automatically merged** once all required checks pass
-- After merge, a new release is created and Docker images are published to GHCR
+- Release Please opens PRs titled `chore(main): release X.Y.Z`
+- Release PRs ending with **SNAPSHOT** are automatically merged once checks pass
+- After merge, a GitHub release is created and Docker images are published to GHCR
 - Version numbers follow [Semantic Versioning](https://semver.org/)
 
 ## Resources
 
-### Documentation
-- [GitHub Copilot Instructions](.github/copilot-instructions.md) - Detailed development guidelines
-- [Contributing Guide](CONTRIBUTING.md) - Contribution guidelines
-- [Security Policy](SECURITY.md) - Security and vulnerability reporting
-- [Changelog](CHANGELOG.md) - Version history and changes
-
-### External Resources
-- [Eventor API Documentation](https://eventor.orienteering.org/api) - Official Eventor API docs
-- [IOF XML Schema](https://github.com/international-orienteering-federation/datastandard-v3) - IOF data standard
-- [Spring Boot Documentation](https://docs.spring.io/spring-boot/docs/current/reference/html/) - Spring Boot reference
-- [Kotlin Documentation](https://kotlinlang.org/docs/home.html) - Kotlin language reference
-
-### Tools
-- [Bruno](https://www.usebruno.com/) - API testing client (collection included in `bruno/` directory)
-- [IntelliJ IDEA](https://www.jetbrains.com/idea/) - Recommended IDE for Kotlin/Spring development
+- [Eventor API Documentation](https://eventor.orienteering.org/api) — Official Eventor API docs
+- [IOF XML Schema](https://github.com/international-orienteering-federation/datastandard-v3) — IOF data standard
+- [Ktor Documentation](https://ktor.io/docs) — Ktor framework reference
+- [Kotlin Documentation](https://kotlinlang.org/docs/home.html) — Kotlin language reference
+- [Bruno](https://www.usebruno.com/) — API testing client (collection in `bruno/` directory)
 
 ## License
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
