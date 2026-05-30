@@ -1,5 +1,12 @@
 # Changelog
 
+## [14.0.6](https://github.com/stunor92/origo-eventor-api/compare/v14.0.5...v14.0.6) (2026-05-30)
+
+
+### Performance Improvements
+
+* per-request 6s timeout on calendar HTTP calls, batch limit 8s ([59ac95d](https://github.com/stunor92/origo-eventor-api/commit/59ac95dfbe1ff4275d04ba425978b042f321f2f5))
+
 ## [14.0.5](https://github.com/stunor92/origo-eventor-api/compare/v14.0.4...v14.0.5) (2026-05-30)
 
 
