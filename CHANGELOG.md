@@ -1,5 +1,17 @@
 # Changelog
 
+## [14.0.2](https://github.com/stunor92/origo-eventor-api/compare/v14.0.1...v14.0.2) (2026-05-30)
+
+
+### Bug Fixes
+
+* correct timeout handling and increase competitor-count cache TTL ([a697be8](https://github.com/stunor92/origo-eventor-api/commit/a697be80c191de4e983757865cdd97e30a0559a8))
+
+
+### Performance Improvements
+
+* reduce batchTimeoutMs default to 20s and add env var override ([ce2f98d](https://github.com/stunor92/origo-eventor-api/commit/ce2f98dd9362cf763b08a5da9917138848cd4dff))
+
 ## [14.0.1](https://github.com/stunor92/origo-eventor-api/compare/v14.0.0...v14.0.1) (2026-05-30)
 
 
