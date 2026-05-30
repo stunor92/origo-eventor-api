@@ -1,5 +1,12 @@
 # Changelog
 
+## [14.0.5](https://github.com/stunor92/origo-eventor-api/compare/v14.0.4...v14.0.5) (2026-05-30)
+
+
+### Bug Fixes
+
+* add batch timeout to single-eventor event-list and reduce to 15s ([ea89a81](https://github.com/stunor92/origo-eventor-api/commit/ea89a8119415a2a0983620d6ba404eab10cc2a0d))
+
 ## [14.0.4](https://github.com/stunor92/origo-eventor-api/compare/v14.0.3...v14.0.4) (2026-05-30)
 
 
