@@ -2,6 +2,7 @@ package no.stunor.origo.eventorapi.api
 
 import com.github.benmanes.caffeine.cache.Cache
 import io.ktor.client.*
+import io.ktor.client.plugins.timeout
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
