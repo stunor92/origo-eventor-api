@@ -76,9 +76,12 @@ class Dependencies(config: ApplicationConfig) {
         eventorConfig.propertyOrNull("maxConcurrentRequests")?.getString()?.toInt() ?: 10
     )
 
+    private val requestTimeoutMs = eventorConfig.propertyOrNull("requestTimeoutMs")?.getString()?.toLong() ?: 15_000L
+
     private val httpClient = HttpClient(CIO) {
         install(HttpTimeout) {
-            requestTimeoutMillis = eventorConfig.propertyOrNull("requestTimeoutMs")?.getString()?.toLong() ?: 20_000L
+            requestTimeoutMillis = requestTimeoutMs
+            socketTimeoutMillis  = requestTimeoutMs
         }
     }
 

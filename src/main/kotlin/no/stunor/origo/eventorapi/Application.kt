@@ -12,6 +12,7 @@ fun main(args: Array<String>) {
 
 fun Application.module() {
     val deps = Dependencies(environment.config)
+    configureMetrics()
     configureDatabase(deps)
     configureSerialization()
     configureAuth(environment.config)
