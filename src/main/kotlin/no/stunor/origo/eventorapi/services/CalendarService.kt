@@ -72,7 +72,19 @@ class CalendarService(
     ): PartialResult<List<CalendarRace>> {
         val eventor = eventorRepository.findById(eventorId) ?: throw EventorNotFoundException()
         val persons = resolvePersonsForEventor(eventor.id, userId)
-        val races = getEventListInternal(eventor, from, to, organisations, classifications, persons)
+        val races = withTimeoutOrNull(batchTimeoutMs) {
+            try {
+                getEventListInternal(eventor, from, to, organisations, classifications, persons)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                log.warn("Failed to fetch events for eventor {}: {}", eventorId, e.message)
+                PartialResult(emptyList(), isPartial = false)
+            }
+        } ?: run {
+            log.warn("Timeout fetching events from eventor {} after {} ms", eventorId, batchTimeoutMs)
+            PartialResult(emptyList<CalendarRace>(), isPartial = true)
+        }
         return PartialResult(filterRacesByDateRange(races.data, from, to), isPartial = races.isPartial)
     }
 
