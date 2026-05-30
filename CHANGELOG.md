@@ -1,5 +1,12 @@
 # Changelog
 
+## [14.0.3](https://github.com/stunor92/origo-eventor-api/compare/v14.0.2...v14.0.3) (2026-05-30)
+
+
+### Performance Improvements
+
+* add Micrometer/Prometheus metrics and fix HTTP timeout overlap ([c77d459](https://github.com/stunor92/origo-eventor-api/commit/c77d45958d4700b6c350d01856a2c2ac4def1476))
+
 ## [14.0.2](https://github.com/stunor92/origo-eventor-api/compare/v14.0.1...v14.0.2) (2026-05-30)
 
 
