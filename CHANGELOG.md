@@ -1,5 +1,17 @@
 # Changelog
 
+## [14.0.1](https://github.com/stunor92/origo-eventor-api/compare/v14.0.0...v14.0.1) (2026-05-30)
+
+
+### Performance Improvements
+
+* remove per-event getEventClasses N+1 from event-list ([1cd8316](https://github.com/stunor92/origo-eventor-api/commit/1cd83161ad575e7bc79c9dca23ecddd04bed524c))
+
+
+### Documentation
+
+* rewrite README to reflect current Ktor/Exposed stack ([4cf2c96](https://github.com/stunor92/origo-eventor-api/commit/4cf2c96afd2cda265e224b7e5fda2aedaf9eb312))
+
 ## [14.0.0](https://github.com/stunor92/origo-eventor-api/compare/v13.1.0...v14.0.0) (2026-05-30)
 
 
