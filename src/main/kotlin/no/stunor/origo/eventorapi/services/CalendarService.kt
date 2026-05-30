@@ -1,5 +1,6 @@
 package no.stunor.origo.eventorapi.services
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -42,6 +43,8 @@ class CalendarService(
                         try {
                             val persons = resolvePersonsForEventor(eventor.id, userId)
                             getEventListInternal(eventor, from, to, null, classifications, persons)
+                        } catch (e: CancellationException) {
+                            throw e
                         } catch (e: Exception) {
                             log.warn("Failed to fetch events for eventor {}: {}", eventor.id, e.message)
                             PartialResult(emptyList<CalendarRace>(), isPartial = false)
