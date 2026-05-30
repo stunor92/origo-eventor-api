@@ -103,7 +103,8 @@ class Dependencies(config: ApplicationConfig) {
     val calendarConverter     = CalendarConverter(eventConverter, organisationConverter)
 
     // ── Services ──────────────────────────────────────────────────────────────
-    private val batchTimeoutMs = eventorConfig.propertyOrNull("batchTimeoutMs")?.getString()?.toLong() ?: 30_000L
+    private val batchTimeoutMs = eventorConfig.propertyOrNull("batchTimeoutMs")?.getString()?.toLong() ?: 8_000L
+    private val calendarCallTimeoutMs = eventorConfig.propertyOrNull("calendarCallTimeoutMs")?.getString()?.toLong() ?: 6_000L
 
     val eventService = EventService(
         eventorRepository     = eventorRepository,
@@ -120,11 +121,12 @@ class Dependencies(config: ApplicationConfig) {
     )
 
     val calendarService = CalendarService(
-        personRepository  = personRepository,
-        eventorRepository = eventorRepository,
-        eventorService    = eventorService,
-        calendarConverter = calendarConverter,
-        batchTimeoutMs    = batchTimeoutMs
+        personRepository      = personRepository,
+        eventorRepository     = eventorRepository,
+        eventorService        = eventorService,
+        calendarConverter     = calendarConverter,
+        batchTimeoutMs        = batchTimeoutMs,
+        calendarCallTimeoutMs = calendarCallTimeoutMs
     )
 
     val personService = PersonService(

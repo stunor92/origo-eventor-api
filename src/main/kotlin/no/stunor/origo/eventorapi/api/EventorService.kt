@@ -42,12 +42,14 @@ class EventorService(
         url: String,
         apiKey: String? = null,
         username: String? = null,
-        password: String? = null
+        password: String? = null,
+        timeoutMs: Long? = null
     ): String = semaphore.withPermit {
         val response = httpClient.get(url) {
             apiKey?.let   { v -> header("ApiKey", v) }
             username?.let { v -> header("Username", v) }
             password?.let { v -> header("Password", v) }
+            timeoutMs?.let { t -> timeout { requestTimeoutMillis = t; socketTimeoutMillis = t } }
         }
         when (response.status) {
             HttpStatusCode.OK           -> response.bodyAsText()
@@ -69,7 +71,8 @@ class EventorService(
         fromDate: LocalDate?,
         toDate: LocalDate?,
         organisationIds: List<String?>?,
-        classifications: List<EventClassificationEnum?>?
+        classifications: List<EventClassificationEnum?>?,
+        timeoutMs: Long? = null
     ): EventList? {
         val classificationIds = (classifications ?: emptyList()).mapNotNull { c ->
             when (c) {
@@ -91,7 +94,7 @@ class EventorService(
 
         val cacheKey = "${eventor.id}:$url"
         eventListCache.getIfPresent(cacheKey)?.let { return it }
-        val xml = get(url, apiKey = eventor.eventorApiKey)
+        val xml = get(url, apiKey = eventor.eventorApiKey, timeoutMs = timeoutMs)
         val result: EventList = unmarshal(xml)
         eventListCache.put(cacheKey, result)
         return result
@@ -101,7 +104,8 @@ class EventorService(
         eventor: Eventor,
         events: List<String?>?,
         organisations: List<String?>?,
-        persons: List<String?>?
+        persons: List<String?>?,
+        timeoutMs: Long? = null
     ): CompetitorCountList {
         val url = eventor.baseUrl + "api/competitorcount" +
                 "?eventIds=" + events?.joinToString(",") +
@@ -109,7 +113,7 @@ class EventorService(
                 "&personIds=" + persons?.joinToString(",")
         val cacheKey = "${eventor.id}:$url"
         competitorCountCache.getIfPresent(cacheKey)?.let { return it }
-        val xml = get(url, apiKey = eventor.eventorApiKey)
+        val xml = get(url, apiKey = eventor.eventorApiKey, timeoutMs = timeoutMs)
         val result: CompetitorCountList = unmarshal(xml)
         competitorCountCache.put(cacheKey, result)
         return result
