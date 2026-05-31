@@ -1,5 +1,30 @@
 # Changelog
 
+## [14.1.0](https://github.com/stunor92/origo-eventor-api/compare/v14.0.7...v14.1.0) (2026-05-31)
+
+
+### Features
+
+* add global personal event-list endpoint across all Eventors ([889fa83](https://github.com/stunor92/origo-eventor-api/commit/889fa83554b2ac3ec1f35f31468a12b1ec9b99f4))
+* add personal event-list endpoint with user entries and results ([86a044f](https://github.com/stunor92/origo-eventor-api/commit/86a044f8caead433eec6e61edd469ebe7439a786))
+* API-first setup with OpenAPI spec and Swagger UI ([8b39d70](https://github.com/stunor92/origo-eventor-api/commit/8b39d707bc0dff67784d4deb7926914d33b42d2c))
+* return PersonalCalendarRace from personal event-list endpoint ([fae0d10](https://github.com/stunor92/origo-eventor-api/commit/fae0d1030ff0ef23532ef9f53c57bd75b89cc23e))
+
+
+### Bug Fixes
+
+* make competitor counts best-effort with separate short timeout ([9d5f1d1](https://github.com/stunor92/origo-eventor-api/commit/9d5f1d1a27bf4daef6353cba1e19ab8b4d59710a))
+
+
+### Performance Improvements
+
+* replace N+1 enrichment with person-based Eventor API calls ([88eebe3](https://github.com/stunor92/origo-eventor-api/commit/88eebe3a51823b81c83e56fafed49856be16ffe2))
+
+
+### Documentation
+
+* replace hardcoded endpoint table with Swagger UI reference ([2060d25](https://github.com/stunor92/origo-eventor-api/commit/2060d259328c978481ec54d8417d30a19e836241))
+
 ## [14.0.7](https://github.com/stunor92/origo-eventor-api/compare/v14.0.6...v14.0.7) (2026-05-30)
 
 
