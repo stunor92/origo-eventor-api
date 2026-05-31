@@ -109,6 +109,29 @@ class CalendarService(
     }
 
     suspend fun getPersonalEventList(
+        from: LocalDate,
+        to: LocalDate,
+        classifications: List<EventClassificationEnum>?,
+        userId: UUID
+    ): List<PersonalCalendarRace> {
+        val eventorList = eventorRepository.findAll()
+        return coroutineScope {
+            eventorList.map { eventor ->
+                async {
+                    try {
+                        fetchPersonalRacesForEventor(eventor, from, to, userId)
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        log.warn("Failed to fetch personal events for eventor {}: {}", eventor.id, e.message)
+                        emptyList()
+                    }
+                }
+            }.awaitAll().flatten()
+        }.sortedBy { it.raceDate }
+    }
+
+    suspend fun getPersonalEventList(
         eventorId: String,
         from: LocalDate,
         to: LocalDate,
@@ -116,7 +139,16 @@ class CalendarService(
         userId: UUID
     ): List<PersonalCalendarRace> {
         val eventor = eventorRepository.findById(eventorId) ?: throw EventorNotFoundException()
-        val persons = personRepository.findAllByUsersAndEventorId(userId, eventorId)
+        return fetchPersonalRacesForEventor(eventor, from, to, userId)
+    }
+
+    private suspend fun fetchPersonalRacesForEventor(
+        eventor: Eventor,
+        from: LocalDate,
+        to: LocalDate,
+        userId: UUID
+    ): List<PersonalCalendarRace> {
+        val persons = personRepository.findAllByUsersAndEventorId(userId, eventor.id)
         if (persons.isEmpty()) return emptyList()
 
         val personRefs = persons.map { it.eventorRef }.toSet()
@@ -128,7 +160,7 @@ class CalendarService(
                 async {
                     try { eventorService.getPersonResults(eventor, person.eventorRef, from, to) }
                     catch (e: Exception) {
-                        log.warn("Failed to fetch results for person {} on eventor {}: {}", person.eventorRef, eventorId, e.message)
+                        log.warn("Failed to fetch results for person {} on eventor {}: {}", person.eventorRef, eventor.id, e.message)
                         null
                     }
                 }
@@ -137,7 +169,7 @@ class CalendarService(
                 async {
                     try { eventorService.getPersonStarts(eventor, person.eventorRef, from, to) }
                     catch (e: Exception) {
-                        log.warn("Failed to fetch starts for person {} on eventor {}: {}", person.eventorRef, eventorId, e.message)
+                        log.warn("Failed to fetch starts for person {} on eventor {}: {}", person.eventorRef, eventor.id, e.message)
                         null
                     }
                 }
@@ -146,7 +178,7 @@ class CalendarService(
                 if (orgRefs.isEmpty()) null
                 else try { eventorService.getPersonEntries(eventor, orgRefs, from, to) }
                      catch (e: Exception) {
-                         log.warn("Failed to fetch entries for eventor {}: {}", eventorId, e.message)
+                         log.warn("Failed to fetch entries for eventor {}: {}", eventor.id, e.message)
                          null
                      }
             }

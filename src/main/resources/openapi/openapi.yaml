@@ -556,6 +556,50 @@ paths:
         "404":
           description: Eventor not found
 
+  /event-list/personal:
+    get:
+      summary: Get personal event list across all Eventors
+      description: |
+        Returns races the authenticated user is registered for across all
+        configured Eventor instances, enriched with personal result, start,
+        or entry data. Fetches from all Eventors in parallel.
+      operationId: getPersonalEventListAll
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: classifications
+          in: query
+          required: false
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/EventClassificationEnum'
+          style: form
+          explode: false
+      responses:
+        "200":
+          description: List of races the user is registered for, with personal data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PersonalCalendarRace'
+        "401":
+          description: Unauthorized — valid JWT required
+
   /event-list/{eventorId}/personal:
     get:
       summary: Get personal event list for the authenticated user
