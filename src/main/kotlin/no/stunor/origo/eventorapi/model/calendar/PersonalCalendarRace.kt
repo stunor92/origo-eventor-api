@@ -20,10 +20,5 @@ data class PersonalCalendarRace(
     val status: EventStatusEnum,
     val disciplines: List<Discipline>,
     val organisers: List<Organisation>,
-    val entries: Int,
-    val startList: Boolean,
-    val resultList: Boolean,
-    val livelox: Boolean,
-    val eventClasses: List<EventClass>,
     val competitors: List<CalendarCompetitor>
 )

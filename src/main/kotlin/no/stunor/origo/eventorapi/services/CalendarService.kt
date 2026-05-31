@@ -161,34 +161,28 @@ class CalendarService(
         val entries = entriesDef.await()
 
         val event = Event(eventorId = eventor.id, eventorRef = race.eventId)
-        val convertedClasses = EventClassConverter.convertEventClasses(eventClassList, event)
-        val classMap = convertedClasses.associateBy { it.eventorRef }
+        val classMap = EventClassConverter.convertEventClasses(eventClassList, event).associateBy { it.eventorRef }
 
         val competitors = entries
             .filter { matchesPerson(it, personRefs) }
             .mapNotNull { toCalendarCompetitor(it, race, classMap) }
 
         PersonalCalendarRace(
-            eventor         = race.eventor,
-            eventId         = race.eventId,
-            eventName       = race.eventName,
-            raceId          = race.raceId,
-            raceName        = race.raceName,
-            raceDate        = race.raceDate,
-            type            = race.type,
-            classification  = race.classification,
-            lightCondition  = race.lightCondition,
-            distance        = race.distance,
-            position        = race.position,
-            status          = race.status,
-            disciplines     = race.disciplines,
-            organisers      = race.organisers,
-            entries         = race.entries,
-            startList       = race.startList,
-            resultList      = race.resultList,
-            livelox         = race.livelox,
-            eventClasses    = convertedClasses,
-            competitors     = competitors
+            eventor        = race.eventor,
+            eventId        = race.eventId,
+            eventName      = race.eventName,
+            raceId         = race.raceId,
+            raceName       = race.raceName,
+            raceDate       = race.raceDate,
+            type           = race.type,
+            classification = race.classification,
+            lightCondition = race.lightCondition,
+            distance       = race.distance,
+            position       = race.position,
+            status         = race.status,
+            disciplines    = race.disciplines,
+            organisers     = race.organisers,
+            competitors    = competitors
         )
     }
 
