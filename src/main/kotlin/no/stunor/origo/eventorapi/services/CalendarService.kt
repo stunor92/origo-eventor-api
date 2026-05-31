@@ -112,7 +112,7 @@ class CalendarService(
         to: LocalDate,
         classifications: List<EventClassificationEnum>?,
         userId: UUID
-    ): List<CalendarRace> {
+    ): List<PersonalCalendarRace> {
         val eventor = eventorRepository.findById(eventorId) ?: throw EventorNotFoundException()
         val persons = personRepository.findAllByUsersAndEventorId(userId, eventorId)
         if (persons.isEmpty()) return emptyList()
@@ -149,7 +149,7 @@ class CalendarService(
         race: CalendarRace,
         personRefs: Set<String>,
         orgCache: Map<String, Organisation>
-    ): CalendarRace = coroutineScope {
+    ): PersonalCalendarRace = coroutineScope {
         val classesDef = async {
             try { eventorService.getEventClasses(eventor, race.eventId) } catch (e: Exception) { null }
         }
@@ -164,13 +164,32 @@ class CalendarService(
         val convertedClasses = EventClassConverter.convertEventClasses(eventClassList, event)
         val classMap = convertedClasses.associateBy { it.eventorRef }
 
-        race.eventClasses = convertedClasses
-        race.userEntries = entries
+        val competitors = entries
             .filter { matchesPerson(it, personRefs) }
             .mapNotNull { toCalendarCompetitor(it, race, classMap) }
-            .toMutableList()
 
-        race
+        PersonalCalendarRace(
+            eventor         = race.eventor,
+            eventId         = race.eventId,
+            eventName       = race.eventName,
+            raceId          = race.raceId,
+            raceName        = race.raceName,
+            raceDate        = race.raceDate,
+            type            = race.type,
+            classification  = race.classification,
+            lightCondition  = race.lightCondition,
+            distance        = race.distance,
+            position        = race.position,
+            status          = race.status,
+            disciplines     = race.disciplines,
+            organisers      = race.organisers,
+            entries         = race.entries,
+            startList       = race.startList,
+            resultList      = race.resultList,
+            livelox         = race.livelox,
+            eventClasses    = convertedClasses,
+            competitors     = competitors
+        )
     }
 
     private suspend fun fetchPersonalEntries(
