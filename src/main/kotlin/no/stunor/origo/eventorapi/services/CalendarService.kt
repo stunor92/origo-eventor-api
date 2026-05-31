@@ -24,8 +24,9 @@ class CalendarService(
     private val eventorRepository: EventorRepository,
     private val eventorService: EventorService,
     private val calendarConverter: CalendarConverter,
-    private val batchTimeoutMs: Long = 8_000L,
-    private val calendarCallTimeoutMs: Long = 6_000L
+    private val batchTimeoutMs: Long = 16_000L,
+    private val eventListTimeoutMs: Long = 10_000L,
+    private val competitorCountTimeoutMs: Long = 4_000L
 ) {
     private val log = LoggerFactory.getLogger(this.javaClass)
 
@@ -106,7 +107,7 @@ class CalendarService(
         persons: List<Person>
     ): PartialResult<List<CalendarRace>> {
         val eventList = eventorService.getEventList(eventor, from, to, organisations, classifications,
-            timeoutMs = calendarCallTimeoutMs)
+            timeoutMs = eventListTimeoutMs)
             ?: return PartialResult(emptyList(), isPartial = false)
         val events = eventList.event.map { it.eventId.content }
 
@@ -115,8 +116,13 @@ class CalendarService(
             person.memberships.mapNotNull { it.organisation?.eventorRef }
         }.distinct()
 
-        val competitorCountList = eventorService.getCompetitorCounts(eventor, events, organisationIds, personIds,
-            timeoutMs = calendarCallTimeoutMs)
+        val competitorCountList = try {
+            eventorService.getCompetitorCounts(eventor, events, organisationIds, personIds,
+                timeoutMs = competitorCountTimeoutMs)
+        } catch (e: Exception) {
+            log.warn("Competitor count unavailable for eventor {} ({}), returning events without counts", eventor.id, e.message)
+            null
+        }
 
         val races = calendarConverter.convertEvents(eventList, eventor, competitorCountList)
         return PartialResult(races, isPartial = false)

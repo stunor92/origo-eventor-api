@@ -12,14 +12,14 @@ class CalendarConverter(
     fun convertEvents(
         eventList: org.iof.eventor.EventList?,
         eventor: Eventor,
-        competitorCountList: org.iof.eventor.CompetitorCountList,
+        competitorCountList: org.iof.eventor.CompetitorCountList?,
         eventClassesMap: Map<String, org.iof.eventor.EventClassList?> = emptyMap()
     ): List<CalendarRace> = eventList?.event?.flatMap { convertEvent(it, eventor, competitorCountList, eventClassesMap) } ?: emptyList()
 
     private fun convertEvent(
         event: org.iof.eventor.Event,
         eventor: Eventor,
-        competitorCountList: org.iof.eventor.CompetitorCountList,
+        competitorCountList: org.iof.eventor.CompetitorCountList?,
         eventClassesMap: Map<String, org.iof.eventor.EventClassList?>
     ): List<CalendarRace> = event.eventRace.map { generateRace(event, it, eventor, competitorCountList, eventClassesMap) }
 
@@ -27,7 +27,7 @@ class CalendarConverter(
         event: org.iof.eventor.Event,
         eventRace: org.iof.eventor.EventRace,
         eventor: Eventor,
-        competitorCountList: org.iof.eventor.CompetitorCountList,
+        competitorCountList: org.iof.eventor.CompetitorCountList?,
         eventClassesMap: Map<String, org.iof.eventor.EventClassList?>
     ): CalendarRace {
         val eventId = event.eventId.content
@@ -68,9 +68,9 @@ class CalendarConverter(
     private fun getOrganisationEntries(
         eventId: String,
         eventRaceId: String,
-        competitorCountList: org.iof.eventor.CompetitorCountList,
+        competitorCountList: org.iof.eventor.CompetitorCountList?,
         eventor: Eventor
-    ): MutableList<OrganisationEntries> = competitorCountList.competitorCount
+    ): MutableList<OrganisationEntries> = (competitorCountList?.competitorCount ?: emptyList())
         .filter { isRelevantCompetitorCount(it, eventId, eventRaceId) }
         .flatMap { it.organisationCompetitorCount ?: emptyList() }
         .mapNotNull { occ -> organisationConverter.convertOrganisation(occ.organisationId, eventor.id)?.let { OrganisationEntries(it, occ.numberOfEntries.toInt()) } }

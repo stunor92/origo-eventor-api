@@ -103,8 +103,9 @@ class Dependencies(config: ApplicationConfig) {
     val calendarConverter     = CalendarConverter(eventConverter, organisationConverter)
 
     // ── Services ──────────────────────────────────────────────────────────────
-    private val batchTimeoutMs = eventorConfig.propertyOrNull("batchTimeoutMs")?.getString()?.toLong() ?: 8_000L
-    private val calendarCallTimeoutMs = eventorConfig.propertyOrNull("calendarCallTimeoutMs")?.getString()?.toLong() ?: 6_000L
+    private val batchTimeoutMs           = eventorConfig.propertyOrNull("batchTimeoutMs")?.getString()?.toLong()           ?: 16_000L
+    private val eventListTimeoutMs        = eventorConfig.propertyOrNull("eventListTimeoutMs")?.getString()?.toLong()        ?: 10_000L
+    private val competitorCountTimeoutMs  = eventorConfig.propertyOrNull("competitorCountTimeoutMs")?.getString()?.toLong()  ?: 4_000L
 
     val eventService = EventService(
         eventorRepository     = eventorRepository,
@@ -121,12 +122,13 @@ class Dependencies(config: ApplicationConfig) {
     )
 
     val calendarService = CalendarService(
-        personRepository      = personRepository,
-        eventorRepository     = eventorRepository,
-        eventorService        = eventorService,
-        calendarConverter     = calendarConverter,
-        batchTimeoutMs        = batchTimeoutMs,
-        calendarCallTimeoutMs = calendarCallTimeoutMs
+        personRepository         = personRepository,
+        eventorRepository        = eventorRepository,
+        eventorService           = eventorService,
+        calendarConverter        = calendarConverter,
+        batchTimeoutMs           = batchTimeoutMs,
+        eventListTimeoutMs       = eventListTimeoutMs,
+        competitorCountTimeoutMs = competitorCountTimeoutMs
     )
 
     val personService = PersonService(
