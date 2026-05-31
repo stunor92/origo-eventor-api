@@ -110,7 +110,7 @@ app.cache {
 ## Build & Run
 
 ```bash
-# Generate JAXB classes from IOF.xsd and compile
+# Generate JAXB classes from IOF.xsd + calendar models from OpenAPI spec, then compile
 mvn generate-sources compile
 
 # Full build with tests
@@ -126,67 +126,29 @@ mvn exec:java
 java -jar target/eventor-api-*.jar
 ```
 
-## API Endpoints
+## API Documentation
 
-All endpoints are under `/rest`.
+The API contract is defined in [`src/main/resources/openapi/openapi.yaml`](src/main/resources/openapi/openapi.yaml).
+Swagger UI is served at **`/swagger-ui`** when the application is running — endpoints, parameters, request/response schemas and authentication requirements are all documented there.
 
-### Event endpoints
-
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| `GET` | `/rest/event/{eventorId}/{eventorRef}` | optional JWT | Event details with classes and fees |
-| `GET` | `/rest/event/{eventorId}/{eventId}/entry-list` | optional JWT | Merged entry list (entry + start + result) |
-
-### Calendar endpoints
-
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| `GET` | `/rest/event-list/{eventorId}` | optional JWT | Calendar for a specific Eventor federation |
-| `GET` | `/rest/event-list` | optional JWT | Calendar across all configured federations |
-
-**Query parameters** for calendar endpoints:
-- `from` (required) — start date, `YYYY-MM-DD`
-- `to` (required) — end date, `YYYY-MM-DD`
-- `organisations` (optional, repeatable) — filter by organisation IDs
-- `classifications` (optional) — comma-separated: `Championship`, `National`, `Regional`, `Local`, `Club`
-
-Returns `200 OK` when all federations responded, `206 Partial Content` when one or more timed out.
-
-### Person endpoint
-
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| `POST` | `/rest/person/{eventorId}` | required JWT | Authenticate Eventor credentials and link person to app user |
-
-Credentials are passed as `username` and `password` request headers.
-
-## Usage Examples
-
-```bash
-# Get event details
-curl "http://localhost:8080/rest/event/NOR/12345"
-
-# Get entry list
-curl "http://localhost:8080/rest/event/NOR/12345/entry-list"
-
-# Get Norwegian calendar for June 2025
-curl "http://localhost:8080/rest/event-list/NOR?from=2025-06-01&to=2025-06-30"
-
-# Link an Eventor person to an app user (JWT required)
-curl -X POST "http://localhost:8080/rest/person/NOR" \
-  -H "Authorization: Bearer <jwt>" \
-  -H "username: myeventoruser" \
-  -H "password: mypassword"
+```
+http://localhost:8080/swagger-ui
 ```
 
 ## Development Notes
 
-### Working with JAXB
+### Generated sources
 
-The project generates Java classes from `IOF.xsd`:
-- Generated classes are in `target/generated-sources/jaxb/`
-- Don't manually edit generated classes
-- Run `mvn generate-sources` after schema changes
+The project has two code generation steps, both triggered by `mvn generate-sources`:
+
+**JAXB** — Java classes from `IOF.xsd` (IOF-XML parsing):
+- Output: `target/generated-sources/jaxb/`
+- Re-run after schema changes
+
+**OpenAPI** — Kotlin calendar response models from `src/main/resources/openapi/openapi.yaml`:
+- Output: `target/generated-sources/openapi/`
+- Re-run after spec changes
+- Do not manually edit either set of generated classes
 
 ### Testing
 
@@ -231,6 +193,7 @@ This project uses [Release Please](https://github.com/googleapis/release-please)
 
 ## Resources
 
+- [OpenAPI Spec](src/main/resources/openapi/openapi.yaml) — API contract (also browsable via Swagger UI at `/swagger-ui`)
 - [Eventor API Documentation](https://eventor.orienteering.org/api) — Official Eventor API docs
 - [IOF XML Schema](https://github.com/international-orienteering-federation/datastandard-v3) — IOF data standard
 - [Ktor Documentation](https://ktor.io/docs) — Ktor framework reference
