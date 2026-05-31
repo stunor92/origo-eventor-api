@@ -1,5 +1,12 @@
 # Changelog
 
+## [14.1.1](https://github.com/stunor92/origo-eventor-api/compare/v14.1.0...v14.1.1) (2026-05-31)
+
+
+### Bug Fixes
+
+* populate eventClass for entry-only calendar competitors ([736e79a](https://github.com/stunor92/origo-eventor-api/commit/736e79ac94a42d2bfb4e6185165702bfaf91da5b))
+
 ## [14.1.0](https://github.com/stunor92/origo-eventor-api/compare/v14.0.7...v14.1.0) (2026-05-31)
 
 
