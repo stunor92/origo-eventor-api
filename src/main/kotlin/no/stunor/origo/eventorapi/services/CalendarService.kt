@@ -196,7 +196,7 @@ class CalendarService(
         }
     }
 
-    private fun buildPersonalRaces(
+    private suspend fun buildPersonalRaces(
         eventor: Eventor,
         resultLists: List<ResultListList>,
         startLists: List<StartListList>,
@@ -249,17 +249,22 @@ class CalendarService(
 
         if (entriesList != null) {
             val byEventId = entriesList.entry.groupBy { it.event?.eventId?.content ?: "" }.filterKeys { it.isNotEmpty() }
-            for ((_, rawEntries) in byEventId) {
+            for ((eventId, rawEntries) in byEventId) {
                 val event = rawEntries.firstOrNull()?.event ?: continue
+                val iofEvent = Event(eventorId = eventor.id, eventorRef = eventId)
+                val eventClassList = eventorService.getEventClasses(eventor, eventId)
+                val classMap = eventClassList?.eventClass?.associate { ec ->
+                    ec.eventClassId.content to EventClassConverter.convertEventClass(iofEvent, ec)
+                } ?: emptyMap()
                 val groupList = org.iof.eventor.EntryList().also { el -> rawEntries.forEach { el.entry.add(it) } }
                 val entries = entryListConverter.convertEventEntryList(eventor, groupList, orgCache)
                     .filter { matchesPerson(it, personRefs) }
                 for (eventRace in event.eventRace) {
-                    val raceKey = "${event.eventId.content}:${eventRace.eventRaceId.content}"
+                    val raceKey = "$eventId:${eventRace.eventRaceId.content}"
                     if (raceKey in raceMap) continue
                     val raceEntries = entries.filter { it.raceEventorRef == eventRace.eventRaceId.content }
                     if (raceEntries.isEmpty()) continue
-                    val competitors = raceEntries.mapNotNull { toCalendarCompetitor(it, isResultList = false, isStartList = false, emptyMap()) }
+                    val competitors = raceEntries.mapNotNull { toCalendarCompetitor(it, isResultList = false, isStartList = false, classMap) }
                     raceMap[raceKey] = calendarConverter.buildPersonalRace(event, eventRace, eventor, orgCache, competitors)
                 }
             }
