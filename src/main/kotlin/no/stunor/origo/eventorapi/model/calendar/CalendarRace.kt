@@ -25,6 +25,5 @@ data class CalendarRace(
     var signedUp: Boolean = false,
     var startList: Boolean = false,
     var resultList: Boolean = false,
-    var livelox: Boolean = false,
-    var eventClasses: List<EventClass> = listOf()
+    var livelox: Boolean = false
 )

@@ -1,8 +1,7 @@
 package no.stunor.origo.eventorapi.services.converter
 
 import no.stunor.origo.eventorapi.model.Eventor
-import no.stunor.origo.eventorapi.model.calendar.*
-import no.stunor.origo.eventorapi.model.event.Event
+import no.stunor.origo.eventorapi.model.calendar.CalendarRace
 
 class CalendarConverter(
     private val eventConverter: EventConverter,
@@ -12,29 +11,21 @@ class CalendarConverter(
     fun convertEvents(
         eventList: org.iof.eventor.EventList?,
         eventor: Eventor,
-        competitorCountList: org.iof.eventor.CompetitorCountList?,
-        eventClassesMap: Map<String, org.iof.eventor.EventClassList?> = emptyMap()
-    ): List<CalendarRace> = eventList?.event?.flatMap { convertEvent(it, eventor, competitorCountList, eventClassesMap) } ?: emptyList()
+        competitorCountList: org.iof.eventor.CompetitorCountList?
+    ): List<CalendarRace> = eventList?.event?.flatMap { convertEvent(it, eventor, competitorCountList) } ?: emptyList()
 
     private fun convertEvent(
         event: org.iof.eventor.Event,
         eventor: Eventor,
-        competitorCountList: org.iof.eventor.CompetitorCountList?,
-        eventClassesMap: Map<String, org.iof.eventor.EventClassList?>
-    ): List<CalendarRace> = event.eventRace.map { generateRace(event, it, eventor, competitorCountList, eventClassesMap) }
+        competitorCountList: org.iof.eventor.CompetitorCountList?
+    ): List<CalendarRace> = event.eventRace.map { generateRace(event, it, eventor, competitorCountList) }
 
     private fun generateRace(
         event: org.iof.eventor.Event,
         eventRace: org.iof.eventor.EventRace,
         eventor: Eventor,
-        competitorCountList: org.iof.eventor.CompetitorCountList?,
-        eventClassesMap: Map<String, org.iof.eventor.EventClassList?>
+        competitorCountList: org.iof.eventor.CompetitorCountList?
     ): CalendarRace {
-        val eventId = event.eventId.content
-        val eventClassList = eventClassesMap[eventId]
-        val convertedEvent = Event(eventorId = eventor.id, eventorRef = eventId)
-        val eventClasses = EventClassConverter.convertEventClasses(eventClassList, convertedEvent)
-
         return CalendarRace(
             eventor = eventor,
             eventId = event.eventId.content,
@@ -55,8 +46,7 @@ class CalendarConverter(
             signedUp = isSignedUp(event.eventId.content, competitorCountList),
             startList = eventConverter.hasStartList(event.hashTableEntry, eventRace.eventRaceId.content),
             resultList = eventConverter.hasResultList(event.hashTableEntry, eventRace.eventRaceId.content),
-            livelox = eventConverter.hasLivelox(event.hashTableEntry),
-            eventClasses = eventClasses
+            livelox = eventConverter.hasLivelox(event.hashTableEntry)
         )
     }
 
