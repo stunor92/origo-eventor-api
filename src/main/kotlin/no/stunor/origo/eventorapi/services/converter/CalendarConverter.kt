@@ -1,7 +1,10 @@
 package no.stunor.origo.eventorapi.services.converter
 
 import no.stunor.origo.eventorapi.model.Eventor
+import no.stunor.origo.eventorapi.model.calendar.CalendarCompetitor
 import no.stunor.origo.eventorapi.model.calendar.CalendarRace
+import no.stunor.origo.eventorapi.model.calendar.PersonalCalendarRace
+import no.stunor.origo.eventorapi.model.organisation.Organisation
 
 class CalendarConverter(
     private val eventConverter: EventConverter,
@@ -55,4 +58,30 @@ class CalendarConverter(
 
     private fun isSignedUp(eventId: String, competitorCountList: org.iof.eventor.CompetitorCountList?): Boolean =
         competitorCountList?.competitorCount?.any { it.eventId == eventId && !it.classCompetitorCount.isNullOrEmpty() } ?: false
+
+    fun buildPersonalRace(
+        event: org.iof.eventor.Event,
+        eventRace: org.iof.eventor.EventRace,
+        eventor: Eventor,
+        orgCache: Map<String, Organisation>,
+        competitors: List<CalendarCompetitor>
+    ): PersonalCalendarRace = PersonalCalendarRace(
+        eventor        = eventor,
+        eventId        = event.eventId.content,
+        eventName      = event.name.content,
+        raceId         = eventRace.eventRaceId.content,
+        raceName       = eventRace.name?.content,
+        raceDate       = TimeStampConverter.parseDate("${eventRace.raceDate.date.content} 00:00:00"),
+        type           = eventConverter.convertEventForm(event.eventForm),
+        classification = eventConverter.convertEventClassification(event.eventClassificationId.content),
+        lightCondition = eventConverter.convertLightCondition(eventRace.raceLightCondition),
+        distance       = eventConverter.convertRaceDistance(eventRace.raceDistance),
+        position       = eventRace.eventCenterPosition?.let { eventConverter.convertPosition(it) },
+        status         = eventConverter.convertEventStatus(event.eventStatusId.content),
+        disciplines    = eventConverter.convertEventDisciplines(event.disciplineIdOrDiscipline),
+        organisers     = event.organiser?.let {
+            organisationConverter.convertOrganisations(it.organisationIdOrOrganisation, eventor.id, orgCache)
+        } ?: listOf(),
+        competitors    = competitors
+    )
 }

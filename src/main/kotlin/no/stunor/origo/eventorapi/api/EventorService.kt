@@ -158,6 +158,47 @@ class EventorService(
         return unmarshal(xml)
     }
 
+    suspend fun getPersonResults(
+        eventor: Eventor,
+        personId: String,
+        from: LocalDate,
+        to: LocalDate,
+        timeoutMs: Long? = null
+    ): ResultListList? {
+        val url = "${eventor.baseUrl}api/results/person?personId=$personId" +
+                "&fromDate=${dateFormat.format(from)}&toDate=${dateFormat.format(to)}"
+        val xml = get(url, apiKey = eventor.eventorApiKey, timeoutMs = timeoutMs)
+        return unmarshal(xml)
+    }
+
+    suspend fun getPersonStarts(
+        eventor: Eventor,
+        personId: String,
+        from: LocalDate,
+        to: LocalDate,
+        timeoutMs: Long? = null
+    ): StartListList? {
+        val url = "${eventor.baseUrl}api/starts/person?personId=$personId" +
+                "&fromDate=${dateFormat.format(from)}&toDate=${dateFormat.format(to)}"
+        val xml = get(url, apiKey = eventor.eventorApiKey, timeoutMs = timeoutMs)
+        return unmarshal(xml)
+    }
+
+    suspend fun getPersonEntries(
+        eventor: Eventor,
+        orgIds: List<String>,
+        from: LocalDate,
+        to: LocalDate,
+        timeoutMs: Long? = null
+    ): EntryList? {
+        val url = "${eventor.baseUrl}api/entries" +
+                "?organisationIds=${orgIds.joinToString(",")}" +
+                "&fromEventDate=${dateFormat.format(from)}&toEventDate=${dateFormat.format(to)}" +
+                "&includeEventElement=true&includePersonElement=true"
+        val xml = get(url, apiKey = eventor.eventorApiKey, timeoutMs = timeoutMs)
+        return unmarshal(xml)
+    }
+
     suspend fun getEventEntryFees(eventor: Eventor, eventId: String): EntryFeeList? {
         val xml = get("${eventor.baseUrl}api/entryfees/events/$eventId", apiKey = eventor.eventorApiKey)
         return unmarshal(xml)

@@ -27,6 +27,8 @@ import no.stunor.origo.eventorapi.services.converter.EntryListConverter
 import no.stunor.origo.eventorapi.services.converter.EventClassConverter
 import no.stunor.origo.eventorapi.services.converter.ResultListConverter
 import no.stunor.origo.eventorapi.services.converter.StartListConverter
+import org.iof.eventor.ResultListList
+import org.iof.eventor.StartListList
 import org.slf4j.LoggerFactory
 import java.time.LocalDate
 import java.util.UUID
@@ -119,92 +121,124 @@ class CalendarService(
 
         val personRefs = persons.map { it.eventorRef }.toSet()
         val orgRefs = persons.flatMap { p -> p.memberships.mapNotNull { it.organisation?.eventorRef } }.distinct()
-
-        val eventList = eventorService.getEventList(eventor, from, to, null, classifications, timeoutMs = eventListTimeoutMs)
-            ?: return emptyList()
-        val eventIds = eventList.event.map { it.eventId.content }
-
-        val competitorCountList = try {
-            eventorService.getCompetitorCounts(eventor, eventIds, orgRefs, personRefs.toList(), timeoutMs = competitorCountTimeoutMs)
-        } catch (e: Exception) {
-            log.warn("Competitor count unavailable for personal event list, eventor {}: {}", eventorId, e.message)
-            null
-        }
-
-        val allRaces = calendarConverter.convertEvents(eventList, eventor, competitorCountList)
-        val signedUpRaces = filterRacesByDateRange(allRaces, from, to).filter { it.signedUp }
-        if (signedUpRaces.isEmpty()) return emptyList()
-
         val orgCache = organisationRepository.findAllByEventorId(eventor.id)
 
         return coroutineScope {
-            signedUpRaces.map { race ->
-                async { enrichRaceWithPersonalData(eventor, race, personRefs, orgCache) }
-            }.awaitAll()
+            val resultDefs = persons.map { person ->
+                async {
+                    try { eventorService.getPersonResults(eventor, person.eventorRef, from, to) }
+                    catch (e: Exception) {
+                        log.warn("Failed to fetch results for person {} on eventor {}: {}", person.eventorRef, eventorId, e.message)
+                        null
+                    }
+                }
+            }
+            val startDefs = persons.map { person ->
+                async {
+                    try { eventorService.getPersonStarts(eventor, person.eventorRef, from, to) }
+                    catch (e: Exception) {
+                        log.warn("Failed to fetch starts for person {} on eventor {}: {}", person.eventorRef, eventorId, e.message)
+                        null
+                    }
+                }
+            }
+            val entriesDef = async {
+                if (orgRefs.isEmpty()) null
+                else try { eventorService.getPersonEntries(eventor, orgRefs, from, to) }
+                     catch (e: Exception) {
+                         log.warn("Failed to fetch entries for eventor {}: {}", eventorId, e.message)
+                         null
+                     }
+            }
+
+            buildPersonalRaces(
+                eventor      = eventor,
+                resultLists  = resultDefs.awaitAll().filterNotNull(),
+                startLists   = startDefs.awaitAll().filterNotNull(),
+                entriesList  = entriesDef.await(),
+                personRefs   = personRefs,
+                orgCache     = orgCache,
+                from         = from,
+                to           = to
+            )
         }
     }
 
-    private suspend fun enrichRaceWithPersonalData(
+    private fun buildPersonalRaces(
         eventor: Eventor,
-        race: CalendarRace,
+        resultLists: List<ResultListList>,
+        startLists: List<StartListList>,
+        entriesList: org.iof.eventor.EntryList?,
         personRefs: Set<String>,
-        orgCache: Map<String, Organisation>
-    ): PersonalCalendarRace = coroutineScope {
-        val classesDef = async {
-            try { eventorService.getEventClasses(eventor, race.eventId) } catch (e: Exception) { null }
-        }
-        val entriesDef = async {
-            try { fetchPersonalEntries(eventor, race, orgCache) } catch (e: Exception) { emptyList() }
+        orgCache: Map<String, Organisation>,
+        from: LocalDate,
+        to: LocalDate
+    ): List<PersonalCalendarRace> {
+        val raceMap = mutableMapOf<String, PersonalCalendarRace>()
+
+        for (resultListList in resultLists) {
+            for (resultList in resultListList.resultList) {
+                val event = resultList.event ?: continue
+                val iofEvent = Event(eventorId = eventor.id, eventorRef = event.eventId.content)
+                val classMap = resultList.classResult.associate { cr ->
+                    cr.eventClass.eventClassId.content to EventClassConverter.convertEventClass(iofEvent, cr.eventClass)
+                }
+                val entries = resultListConverter.convertEventResultList(eventor, resultList, orgCache)
+                    .filter { matchesPerson(it, personRefs) }
+                for (eventRace in event.eventRace) {
+                    val raceKey = "${event.eventId.content}:${eventRace.eventRaceId.content}"
+                    val raceEntries = entries.filter { it.raceEventorRef == eventRace.eventRaceId.content }
+                    if (raceEntries.isEmpty()) continue
+                    val competitors = raceEntries.mapNotNull { toCalendarCompetitor(it, isResultList = true, isStartList = false, classMap) }
+                    raceMap[raceKey] = calendarConverter.buildPersonalRace(event, eventRace, eventor, orgCache, competitors)
+                }
+            }
         }
 
-        val eventClassList = classesDef.await()
-        val entries = entriesDef.await()
-
-        val event = Event(eventorId = eventor.id, eventorRef = race.eventId)
-        val classMap = EventClassConverter.convertEventClasses(eventClassList, event).associateBy { it.eventorRef }
-
-        val competitors = entries
-            .filter { matchesPerson(it, personRefs) }
-            .mapNotNull { toCalendarCompetitor(it, race, classMap) }
-
-        PersonalCalendarRace(
-            eventor        = race.eventor,
-            eventId        = race.eventId,
-            eventName      = race.eventName,
-            raceId         = race.raceId,
-            raceName       = race.raceName,
-            raceDate       = race.raceDate,
-            type           = race.type,
-            classification = race.classification,
-            lightCondition = race.lightCondition,
-            distance       = race.distance,
-            position       = race.position,
-            status         = race.status,
-            disciplines    = race.disciplines,
-            organisers     = race.organisers,
-            competitors    = competitors
-        )
-    }
-
-    private suspend fun fetchPersonalEntries(
-        eventor: Eventor,
-        race: CalendarRace,
-        orgCache: Map<String, Organisation>
-    ): List<Entry> = when {
-        race.resultList -> {
-            val rl = eventorService.getEventResultList(eventor.baseUrl, eventor.eventorApiKey, race.eventId)
-            rl?.let { resultListConverter.convertEventResultList(eventor, it, orgCache) } ?: emptyList()
+        for (startListList in startLists) {
+            for (startList in startListList.startList) {
+                val event = startList.event ?: continue
+                val iofEvent = Event(eventorId = eventor.id, eventorRef = event.eventId.content)
+                val classMap = startList.classStart.associate { cs ->
+                    cs.eventClass.eventClassId.content to EventClassConverter.convertEventClass(iofEvent, cs.eventClass)
+                }
+                val entries = startListConverter.convertEventStartList(eventor, startList, orgCache)
+                    .filter { matchesPerson(it, personRefs) }
+                for (eventRace in event.eventRace) {
+                    val raceKey = "${event.eventId.content}:${eventRace.eventRaceId.content}"
+                    if (raceKey in raceMap) continue
+                    val raceEntries = entries.filter { it.raceEventorRef == eventRace.eventRaceId.content }
+                    if (raceEntries.isEmpty()) continue
+                    val competitors = raceEntries.mapNotNull { toCalendarCompetitor(it, isResultList = false, isStartList = true, classMap) }
+                    raceMap[raceKey] = calendarConverter.buildPersonalRace(event, eventRace, eventor, orgCache, competitors)
+                }
+            }
         }
-        race.startList -> {
-            val sl = eventorService.getEventStartList(eventor.baseUrl, eventor.eventorApiKey, race.eventId)
-            sl?.let { startListConverter.convertEventStartList(eventor, it, orgCache) } ?: emptyList()
+
+        if (entriesList != null) {
+            val byEventId = entriesList.entry.groupBy { it.event?.eventId?.content ?: "" }.filterKeys { it.isNotEmpty() }
+            for ((_, rawEntries) in byEventId) {
+                val event = rawEntries.firstOrNull()?.event ?: continue
+                val groupList = org.iof.eventor.EntryList().also { el -> rawEntries.forEach { el.entry.add(it) } }
+                val entries = entryListConverter.convertEventEntryList(eventor, groupList, orgCache)
+                    .filter { matchesPerson(it, personRefs) }
+                for (eventRace in event.eventRace) {
+                    val raceKey = "${event.eventId.content}:${eventRace.eventRaceId.content}"
+                    if (raceKey in raceMap) continue
+                    val raceEntries = entries.filter { it.raceEventorRef == eventRace.eventRaceId.content }
+                    if (raceEntries.isEmpty()) continue
+                    val competitors = raceEntries.mapNotNull { toCalendarCompetitor(it, isResultList = false, isStartList = false, emptyMap()) }
+                    raceMap[raceKey] = calendarConverter.buildPersonalRace(event, eventRace, eventor, orgCache, competitors)
+                }
+            }
         }
-        else -> {
-            val el = eventorService.getEventEntryList(eventor.baseUrl, eventor.eventorApiKey, race.eventId)
-            el?.takeIf { !it.entry.isNullOrEmpty() }
-                ?.let { entryListConverter.convertEventEntryList(eventor, it, orgCache) }
-                ?: emptyList()
-        }
+
+        return raceMap.values
+            .filter { race ->
+                val date = race.raceDate.toLocalDateTime().toLocalDate()
+                !date.isBefore(from) && !date.isAfter(to)
+            }
+            .sortedBy { it.raceDate }
     }
 
     private fun matchesPerson(entry: Entry, personRefs: Set<String>): Boolean = when (entry) {
@@ -213,15 +247,15 @@ class CalendarService(
         else           -> false
     }
 
-    private fun toCalendarCompetitor(entry: Entry, race: CalendarRace, classMap: Map<String, EventClass>): CalendarCompetitor? {
+    private fun toCalendarCompetitor(entry: Entry, isResultList: Boolean, isStartList: Boolean, classMap: Map<String, EventClass>): CalendarCompetitor? {
         val eventClass = classMap[entry.classEventorRef] ?: EventClass()
         return when {
-            entry is PersonEntry && race.resultList -> CalendarCompetitor(
+            entry is PersonEntry && isResultList -> CalendarCompetitor(
                 personId = entry.personEventorRef ?: "",
                 name = entry.name,
                 personResult = entry.result?.let { CalendarPersonResult(result = it, bib = entry.bib, eventClass = eventClass) }
             )
-            entry is PersonEntry && race.startList -> CalendarCompetitor(
+            entry is PersonEntry && isStartList -> CalendarCompetitor(
                 personId = entry.personEventorRef ?: "",
                 name = entry.name,
                 personStart = CalendarPersonStart(startTime = entry.startTime, bib = entry.bib, eventClass = eventClass)
@@ -234,7 +268,7 @@ class CalendarService(
             entry is TeamEntry -> {
                 val member = entry.teamMembers.firstOrNull { it.personEventorRef != null } ?: return null
                 when {
-                    race.resultList -> CalendarCompetitor(
+                    isResultList -> CalendarCompetitor(
                         personId = member.personEventorRef ?: "",
                         name = member.name ?: PersonName(),
                         teamResult = member.overallResult?.let {
@@ -248,7 +282,7 @@ class CalendarService(
                             )
                         }
                     )
-                    race.startList -> CalendarCompetitor(
+                    isStartList -> CalendarCompetitor(
                         personId = member.personEventorRef ?: "",
                         name = member.name ?: PersonName(),
                         teamStart = CalendarTeamStart(
