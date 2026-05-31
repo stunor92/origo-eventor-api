@@ -124,8 +124,12 @@ class Dependencies(config: ApplicationConfig) {
     val calendarService = CalendarService(
         personRepository         = personRepository,
         eventorRepository        = eventorRepository,
+        organisationRepository   = organisationRepository,
         eventorService           = eventorService,
         calendarConverter        = calendarConverter,
+        entryListConverter       = entryListConverter,
+        startListConverter       = startListConverter,
+        resultListConverter      = resultListConverter,
         batchTimeoutMs           = batchTimeoutMs,
         eventListTimeoutMs       = eventListTimeoutMs,
         competitorCountTimeoutMs = competitorCountTimeoutMs

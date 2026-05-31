@@ -79,6 +79,32 @@ fun Application.configureRouting(deps: Dependencies) {
             }
 
             authenticate("jwt-required") {
+                get("/event-list/{eventorId}/personal") {
+                    val eventorId       = deps.inputValidator.validateEventorId(call.parameters["eventorId"]!!)
+                    val from            = LocalDate.parse(call.request.queryParameters["from"]!!)
+                    val to              = LocalDate.parse(call.request.queryParameters["to"]!!)
+                    val classifications = call.request.queryParameters.getAll("classifications")
+                        ?.flatMap { it.split(",") }
+                        ?.mapNotNull { runCatching { EventClassificationEnum.valueOf(it.trim()) }.getOrNull() }
+                        ?: listOf(
+                            EventClassificationEnum.Championship,
+                            EventClassificationEnum.National,
+                            EventClassificationEnum.Regional,
+                            EventClassificationEnum.Local
+                        )
+                    val uid = UUID.fromString(
+                        call.principal<JWTPrincipal>()?.subject
+                            ?: throw IllegalStateException("Authentication required")
+                    )
+                    call.respond(deps.calendarService.getPersonalEventList(
+                        eventorId       = eventorId,
+                        from            = from,
+                        to              = to,
+                        classifications = classifications,
+                        userId          = uid
+                    ))
+                }
+
                 post("/person/{eventorId}") {
                     val eventorId = deps.inputValidator.validateEventorId(call.parameters["eventorId"]!!)
                     val username  = deps.inputValidator.validateUsername(
