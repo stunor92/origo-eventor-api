@@ -106,6 +106,13 @@
             <version>${micrometer.version}</version>
         </dependency>
 
+        <!-- Swagger UI -->
+        <dependency>
+            <groupId>io.ktor</groupId>
+            <artifactId>ktor-server-swagger-jvm</artifactId>
+            <version>${ktor.version}</version>
+        </dependency>
+
         <!-- Ktor client -->
         <dependency>
             <groupId>io.ktor</groupId>
@@ -286,6 +293,61 @@
             </plugin>
 
             <plugin>
+                <groupId>org.openapitools</groupId>
+                <artifactId>openapi-generator-maven-plugin</artifactId>
+                <version>7.10.0</version>
+                <executions>
+                    <execution>
+                        <id>generate-calendar-models</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>generate</goal>
+                        </goals>
+                        <configuration>
+                            <inputSpec>${project.basedir}/src/main/resources/openapi/openapi.yaml</inputSpec>
+                            <generatorName>kotlin</generatorName>
+                            <generateApis>false</generateApis>
+                            <generateModelTests>false</generateModelTests>
+                            <generateModelDocumentation>false</generateModelDocumentation>
+                            <generateSupportingFiles>false</generateSupportingFiles>
+                            <modelsToGenerate>CalendarRace,PersonalCalendarRace,CalendarCompetitor,CalendarPersonResult,CalendarPersonStart,CalendarTeamResult,CalendarTeamStart,CalendarEntry</modelsToGenerate>
+                            <modelPackage>no.stunor.origo.eventorapi.model.calendar</modelPackage>
+                            <output>${project.build.directory}/generated-sources/openapi</output>
+                            <configOptions>
+                                <serializationLibrary>jackson</serializationLibrary>
+                                <sourceFolder>src/main/kotlin</sourceFolder>
+                            </configOptions>
+                            <typeMappings>
+                                <typeMapping>DateTime=Timestamp</typeMapping>
+                            </typeMappings>
+                            <importMappings>
+                                <importMapping>Timestamp=java.sql.Timestamp</importMapping>
+                                <importMapping>Eventor=no.stunor.origo.eventorapi.model.Eventor</importMapping>
+                                <importMapping>Organisation=no.stunor.origo.eventorapi.model.organisation.Organisation</importMapping>
+                                <importMapping>EventClass=no.stunor.origo.eventorapi.model.event.EventClass</importMapping>
+                                <importMapping>PersonName=no.stunor.origo.eventorapi.model.person.PersonName</importMapping>
+                                <importMapping>Result=no.stunor.origo.eventorapi.model.event.entry.Result</importMapping>
+                                <importMapping>PunchingUnit=no.stunor.origo.eventorapi.model.event.PunchingUnit</importMapping>
+                                <importMapping>RacePosition=no.stunor.origo.eventorapi.model.event.RacePosition</importMapping>
+                                <importMapping>Region=no.stunor.origo.eventorapi.model.Region</importMapping>
+                                <importMapping>EventFormEnum=no.stunor.origo.eventorapi.model.event.EventFormEnum</importMapping>
+                                <importMapping>EventClassificationEnum=no.stunor.origo.eventorapi.model.event.EventClassificationEnum</importMapping>
+                                <importMapping>LightConditionEnum=no.stunor.origo.eventorapi.model.event.LightConditionEnum</importMapping>
+                                <importMapping>DistanceEnum=no.stunor.origo.eventorapi.model.event.DistanceEnum</importMapping>
+                                <importMapping>EventStatusEnum=no.stunor.origo.eventorapi.model.event.EventStatusEnum</importMapping>
+                                <importMapping>Discipline=no.stunor.origo.eventorapi.model.event.Discipline</importMapping>
+                                <importMapping>OrganisationType=no.stunor.origo.eventorapi.model.organisation.OrganisationType</importMapping>
+                                <importMapping>ClassGender=no.stunor.origo.eventorapi.model.event.ClassGender</importMapping>
+                                <importMapping>EventClassTypeEnum=no.stunor.origo.eventorapi.model.event.EventClassTypeEnum</importMapping>
+                                <importMapping>ResultStatus=no.stunor.origo.eventorapi.model.event.entry.ResultStatus</importMapping>
+                                <importMapping>PunchingUnitType=no.stunor.origo.eventorapi.model.event.PunchingUnitType</importMapping>
+                            </importMappings>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>build-helper-maven-plugin</artifactId>
                 <version>3.6.1</version>
@@ -299,6 +361,7 @@
                         <configuration>
                             <sources>
                                 <source>${project.build.directory}/generated-sources/jaxb</source>
+                                <source>${project.build.directory}/generated-sources/openapi/src/main/kotlin</source>
                             </sources>
                         </configuration>
                     </execution>
@@ -323,6 +386,7 @@
                             </args>
                             <sourceDirs>
                                 <source>src/main/kotlin</source>
+                                <source>${project.build.directory}/generated-sources/openapi/src/main/kotlin</source>
                             </sourceDirs>
                         </configuration>
                     </execution>

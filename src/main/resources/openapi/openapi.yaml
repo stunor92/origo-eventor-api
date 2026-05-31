@@ -1,0 +1,695 @@
+openapi: 3.0.3
+info:
+  title: Origo Eventor API
+  description: |
+    API for fetching orienteering event data from Eventor (IOF standard).
+    Event-list endpoints return HTTP 206 Partial Content when one or more Eventors
+    timed out — the response body still contains available data.
+  version: ${project.version}
+  contact:
+    name: Sturle Tolo Nordeide
+
+servers:
+  - url: /rest
+
+security: []
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+
+    # ── Enums ────────────────────────────────────────────────────────────────
+
+    EventFormEnum:
+      type: string
+      enum: [Individual, Relay, Patrol, Team]
+
+    EventClassificationEnum:
+      type: string
+      enum: [Championship, National, Regional, Local, Club]
+
+    LightConditionEnum:
+      type: string
+      enum: [Day, Night, DayAndNight]
+
+    DistanceEnum:
+      type: string
+      enum: [Sprint, Middle, Long, UltraLong, PreO, TempO]
+
+    EventStatusEnum:
+      type: string
+      enum: [Applied, RegionApproved, Approved, Created, EntryOpen, EntryPaused, EntryClosed, Live, Completed, Canceled, Reported]
+
+    Discipline:
+      type: string
+      enum: [FootO, MtbO, SkiO, PreO]
+
+    OrganisationType:
+      type: string
+      enum: [Club, Region, Federation, IOF]
+
+    ClassGender:
+      type: string
+      enum: [Men, Women, Both]
+
+    EventClassTypeEnum:
+      type: string
+      enum: [Elite, Normal, Open]
+
+    ResultStatus:
+      type: string
+      enum: [Inactive, MisPunch, DidNotStart, MovedUp, OverTime, Moved, Active, Disqualified, DidNotFinish, Cancelled, SportWithdr, OK, NotCompeting, Finished]
+
+    PunchingUnitType:
+      type: string
+      enum: [Manual, Emit, SI, EmiTag, Other]
+
+    # ── Simple value objects ──────────────────────────────────────────────────
+
+    RacePosition:
+      type: object
+      required: [latitude, longitude]
+      properties:
+        latitude:
+          type: number
+          format: double
+        longitude:
+          type: number
+          format: double
+
+    PersonName:
+      type: object
+      required: [family, given]
+      properties:
+        family:
+          type: string
+        given:
+          type: string
+
+    Region:
+      type: object
+      required: [eventorRef, name]
+      properties:
+        id:
+          type: string
+          format: uuid
+          nullable: true
+        eventorRef:
+          type: string
+        name:
+          type: string
+
+    Eventor:
+      type: object
+      required: [id, name, federation, baseUrl]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        federation:
+          type: string
+        baseUrl:
+          type: string
+
+    Organisation:
+      type: object
+      required: [eventorRef, name, type, country]
+      properties:
+        id:
+          type: string
+          format: uuid
+          nullable: true
+        eventorRef:
+          type: string
+        name:
+          type: string
+        type:
+          $ref: '#/components/schemas/OrganisationType'
+        country:
+          type: string
+        region:
+          $ref: '#/components/schemas/Region'
+          nullable: true
+
+    EventClass:
+      type: object
+      required: [id, eventorRef, name, shortName, type, gender, presentTime, orderedResult, legs]
+      properties:
+        id:
+          type: string
+          format: uuid
+        eventorRef:
+          type: string
+        name:
+          type: string
+        shortName:
+          type: string
+        type:
+          $ref: '#/components/schemas/EventClassTypeEnum'
+        minAge:
+          type: integer
+          nullable: true
+        maxAge:
+          type: integer
+          nullable: true
+        gender:
+          $ref: '#/components/schemas/ClassGender'
+        presentTime:
+          type: boolean
+        orderedResult:
+          type: boolean
+        legs:
+          type: integer
+        minAverageAge:
+          type: integer
+          nullable: true
+        maxAverageAge:
+          type: integer
+          nullable: true
+
+    Result:
+      type: object
+      required: [status]
+      properties:
+        time:
+          type: integer
+          description: Elapsed time in seconds
+          nullable: true
+        timeBehind:
+          type: integer
+          description: Time behind leader in seconds
+          nullable: true
+        position:
+          type: integer
+          nullable: true
+        status:
+          $ref: '#/components/schemas/ResultStatus'
+
+    PunchingUnit:
+      type: object
+      required: [id, type]
+      properties:
+        id:
+          type: string
+        type:
+          $ref: '#/components/schemas/PunchingUnitType'
+
+    # ── Calendar competitor sub-types ─────────────────────────────────────────
+
+    CalendarEntry:
+      type: object
+      required: [punchingUnits]
+      properties:
+        eventClass:
+          $ref: '#/components/schemas/EventClass'
+          nullable: true
+        punchingUnits:
+          type: array
+          items:
+            $ref: '#/components/schemas/PunchingUnit'
+
+    CalendarPersonStart:
+      type: object
+      required: [eventClass]
+      properties:
+        startTime:
+          type: string
+          format: date-time
+          nullable: true
+        bib:
+          type: string
+          nullable: true
+        eventClass:
+          $ref: '#/components/schemas/EventClass'
+
+    CalendarPersonResult:
+      type: object
+      required: [result, eventClass]
+      properties:
+        result:
+          $ref: '#/components/schemas/Result'
+        bib:
+          type: string
+          nullable: true
+        eventClass:
+          $ref: '#/components/schemas/EventClass'
+
+    CalendarTeamStart:
+      type: object
+      required: [teamName, leg, eventClass]
+      properties:
+        teamName:
+          type: string
+        startTime:
+          type: string
+          format: date-time
+          nullable: true
+        bib:
+          type: string
+          nullable: true
+        leg:
+          type: integer
+        eventClass:
+          $ref: '#/components/schemas/EventClass'
+
+    CalendarTeamResult:
+      type: object
+      required: [teamName, leg, result, legResult, eventClass]
+      properties:
+        teamName:
+          type: string
+        leg:
+          type: integer
+        result:
+          $ref: '#/components/schemas/Result'
+        legResult:
+          $ref: '#/components/schemas/Result'
+        bib:
+          type: string
+          nullable: true
+        eventClass:
+          $ref: '#/components/schemas/EventClass'
+
+    CalendarCompetitor:
+      type: object
+      required: [personId, name]
+      properties:
+        personId:
+          type: string
+        name:
+          $ref: '#/components/schemas/PersonName'
+        personEntry:
+          $ref: '#/components/schemas/CalendarEntry'
+          nullable: true
+        personStart:
+          $ref: '#/components/schemas/CalendarPersonStart'
+          nullable: true
+        teamStart:
+          $ref: '#/components/schemas/CalendarTeamStart'
+          nullable: true
+        personResult:
+          $ref: '#/components/schemas/CalendarPersonResult'
+          nullable: true
+        teamResult:
+          $ref: '#/components/schemas/CalendarTeamResult'
+          nullable: true
+
+    # ── Calendar race models ──────────────────────────────────────────────────
+
+    CalendarRace:
+      type: object
+      required:
+        - eventor
+        - eventId
+        - eventName
+        - raceId
+        - raceDate
+        - type
+        - classification
+        - lightCondition
+        - distance
+        - status
+        - disciplines
+        - organisers
+        - entryBreaks
+        - entries
+        - signedUp
+        - startList
+        - resultList
+        - livelox
+      properties:
+        eventor:
+          $ref: '#/components/schemas/Eventor'
+        eventId:
+          type: string
+        eventName:
+          type: string
+        raceId:
+          type: string
+        raceName:
+          type: string
+          nullable: true
+        raceDate:
+          type: string
+          format: date-time
+        type:
+          $ref: '#/components/schemas/EventFormEnum'
+        classification:
+          $ref: '#/components/schemas/EventClassificationEnum'
+        lightCondition:
+          $ref: '#/components/schemas/LightConditionEnum'
+        distance:
+          $ref: '#/components/schemas/DistanceEnum'
+        position:
+          $ref: '#/components/schemas/RacePosition'
+          nullable: true
+        status:
+          $ref: '#/components/schemas/EventStatusEnum'
+        disciplines:
+          type: array
+          items:
+            $ref: '#/components/schemas/Discipline'
+        organisers:
+          type: array
+          items:
+            $ref: '#/components/schemas/Organisation'
+        entryBreaks:
+          type: array
+          items:
+            type: string
+            format: date-time
+        entries:
+          type: integer
+        signedUp:
+          type: boolean
+        startList:
+          type: boolean
+        resultList:
+          type: boolean
+        livelox:
+          type: boolean
+
+    PersonalCalendarRace:
+      type: object
+      required:
+        - eventor
+        - eventId
+        - eventName
+        - raceId
+        - raceDate
+        - type
+        - classification
+        - lightCondition
+        - distance
+        - status
+        - disciplines
+        - organisers
+        - competitors
+      properties:
+        eventor:
+          $ref: '#/components/schemas/Eventor'
+        eventId:
+          type: string
+        eventName:
+          type: string
+        raceId:
+          type: string
+        raceName:
+          type: string
+          nullable: true
+        raceDate:
+          type: string
+          format: date-time
+        type:
+          $ref: '#/components/schemas/EventFormEnum'
+        classification:
+          $ref: '#/components/schemas/EventClassificationEnum'
+        lightCondition:
+          $ref: '#/components/schemas/LightConditionEnum'
+        distance:
+          $ref: '#/components/schemas/DistanceEnum'
+        position:
+          $ref: '#/components/schemas/RacePosition'
+          nullable: true
+        status:
+          $ref: '#/components/schemas/EventStatusEnum'
+        disciplines:
+          type: array
+          items:
+            $ref: '#/components/schemas/Discipline'
+        organisers:
+          type: array
+          items:
+            $ref: '#/components/schemas/Organisation'
+        competitors:
+          type: array
+          items:
+            $ref: '#/components/schemas/CalendarCompetitor'
+
+paths:
+
+  /event-list:
+    get:
+      summary: Get events across all Eventors
+      description: |
+        Returns events from all configured Eventor instances for the given date range.
+        Returns HTTP 206 if one or more Eventors timed out (partial result).
+        If a valid JWT is provided, `signedUp` is populated per race.
+      operationId: getEventList
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          example: "2025-01-01"
+        - name: to
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          example: "2025-01-31"
+        - name: classifications
+          in: query
+          required: false
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/EventClassificationEnum'
+          style: form
+          explode: false
+      responses:
+        "200":
+          description: Complete list of races
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CalendarRace'
+        "206":
+          description: Partial list — one or more Eventors timed out
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CalendarRace'
+
+  /event-list/{eventorId}:
+    get:
+      summary: Get events for a specific Eventor
+      description: |
+        Returns events for the given Eventor and date range, optionally filtered
+        by organisation or classification.
+        Returns HTTP 206 if the Eventor timed out (partial result).
+        If a valid JWT is provided, `signedUp` is populated per race.
+      operationId: getEventListForEventor
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - name: eventorId
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "NOR"
+        - name: from
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: organisations
+          in: query
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+          style: form
+          explode: true
+        - name: classifications
+          in: query
+          required: false
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/EventClassificationEnum'
+          style: form
+          explode: false
+      responses:
+        "200":
+          description: Complete list of races
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CalendarRace'
+        "206":
+          description: Partial list — Eventor timed out
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CalendarRace'
+        "404":
+          description: Eventor not found
+
+  /event-list/{eventorId}/personal:
+    get:
+      summary: Get personal event list for the authenticated user
+      description: |
+        Returns races the authenticated user is registered for, enriched with
+        personal result, start, or entry data. Fetches data directly from
+        Eventor's person-based endpoints — no N+1 per-race lookups.
+      operationId: getPersonalEventList
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: eventorId
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "NOR"
+        - name: from
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: classifications
+          in: query
+          required: false
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/EventClassificationEnum'
+          style: form
+          explode: false
+      responses:
+        "200":
+          description: List of races the user is registered for, with personal data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PersonalCalendarRace'
+        "401":
+          description: Unauthorized — valid JWT required
+        "404":
+          description: Eventor not found
+
+  /event/{eventorId}/{eventorRef}:
+    get:
+      summary: Get a single event with full detail
+      operationId: getEvent
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - name: eventorId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: eventorRef
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Event detail
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /event/{eventorId}/{eventId}/entry-list:
+    get:
+      summary: Get the entry list for an event
+      operationId: getEntryList
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - name: eventorId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Entry list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+
+  /person/{eventorId}:
+    post:
+      summary: Authenticate a person against Eventor and link to the current user
+      operationId: authenticatePerson
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: eventorId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: username
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: password
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Person linked successfully
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Invalid Eventor credentials

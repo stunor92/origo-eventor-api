@@ -45,7 +45,7 @@ class CalendarConverter(
             disciplines = eventConverter.convertEventDisciplines(event.disciplineIdOrDiscipline),
             organisers = event.organiser?.let { organisationConverter.convertOrganisations(it.organisationIdOrOrganisation, eventor.id) } ?: listOf(),
             entryBreaks = eventConverter.convertEntryBreaks(event.entryBreak, eventor),
-            entries = getEntries(event.eventId.content, eventRace.eventRaceId.content, competitorCountList),
+            propertyEntries = getEntries(event.eventId.content, eventRace.eventRaceId.content, competitorCountList),
             signedUp = isSignedUp(event.eventId.content, competitorCountList),
             startList = eventConverter.hasStartList(event.hashTableEntry, eventRace.eventRaceId.content),
             resultList = eventConverter.hasResultList(event.hashTableEntry, eventRace.eventRaceId.content),

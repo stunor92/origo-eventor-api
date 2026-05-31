@@ -6,6 +6,7 @@ import io.ktor.server.auth.*
 import io.ktor.server.auth.jwt.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import io.ktor.server.plugins.swagger.*
 import no.stunor.origo.eventorapi.Dependencies
 import no.stunor.origo.eventorapi.model.event.EventClassificationEnum
 import java.time.LocalDate
@@ -13,6 +14,8 @@ import java.util.UUID
 
 fun Application.configureRouting(deps: Dependencies) {
     routing {
+
+        swaggerUI(path = "swagger-ui", swaggerFile = "openapi/openapi.yaml")
 
         route("/rest") {
             authenticate("jwt-optional", optional = true) {
