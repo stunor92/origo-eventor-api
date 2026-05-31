@@ -22,8 +22,6 @@ data class CalendarRace(
     var organisers: List<Organisation> = listOf(),
     var entryBreaks: List<Timestamp> = listOf(),
     var entries: Int = 0,
-    var userEntries: MutableList<CalendarCompetitor> = mutableListOf(),
-    var organisationEntries: MutableList<OrganisationEntries> = mutableListOf(),
     var signedUp: Boolean = false,
     var startList: Boolean = false,
     var resultList: Boolean = false,

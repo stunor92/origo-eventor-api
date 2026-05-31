@@ -52,8 +52,6 @@ class CalendarConverter(
             organisers = event.organiser?.let { organisationConverter.convertOrganisations(it.organisationIdOrOrganisation, eventor.id) } ?: listOf(),
             entryBreaks = eventConverter.convertEntryBreaks(event.entryBreak, eventor),
             entries = getEntries(event.eventId.content, eventRace.eventRaceId.content, competitorCountList),
-            userEntries = mutableListOf(),
-            organisationEntries = getOrganisationEntries(event.eventId.content, eventRace.eventRaceId.content, competitorCountList, eventor),
             signedUp = isSignedUp(event.eventId.content, competitorCountList),
             startList = eventConverter.hasStartList(event.hashTableEntry, eventRace.eventRaceId.content),
             resultList = eventConverter.hasResultList(event.hashTableEntry, eventRace.eventRaceId.content),
@@ -64,20 +62,6 @@ class CalendarConverter(
 
     private fun getEntries(eventId: String, eventRaceId: String, competitorCountList: org.iof.eventor.CompetitorCountList?): Int =
         competitorCountList?.competitorCount?.firstOrNull { it.eventId == eventId && (it.eventRaceId == null || it.eventRaceId == eventRaceId) }?.numberOfEntries?.toInt() ?: 0
-
-    private fun getOrganisationEntries(
-        eventId: String,
-        eventRaceId: String,
-        competitorCountList: org.iof.eventor.CompetitorCountList?,
-        eventor: Eventor
-    ): MutableList<OrganisationEntries> = (competitorCountList?.competitorCount ?: emptyList())
-        .filter { isRelevantCompetitorCount(it, eventId, eventRaceId) }
-        .flatMap { it.organisationCompetitorCount ?: emptyList() }
-        .mapNotNull { occ -> organisationConverter.convertOrganisation(occ.organisationId, eventor.id)?.let { OrganisationEntries(it, occ.numberOfEntries.toInt()) } }
-        .toMutableList()
-
-    private fun isRelevantCompetitorCount(competitorCount: org.iof.eventor.CompetitorCount, eventId: String, eventRaceId: String): Boolean =
-        competitorCount.eventId == eventId && (competitorCount.eventRaceId == null || competitorCount.eventRaceId == eventRaceId) && competitorCount.organisationCompetitorCount != null
 
     private fun isSignedUp(eventId: String, competitorCountList: org.iof.eventor.CompetitorCountList?): Boolean =
         competitorCountList?.competitorCount?.any { it.eventId == eventId && !it.classCompetitorCount.isNullOrEmpty() } ?: false
