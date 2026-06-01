@@ -1,6 +1,7 @@
 {
   "release-type": "maven",
   "include-v-in-tag": true,
+  "skip-snapshot": true,
 
   "packages": {
     ".": {
