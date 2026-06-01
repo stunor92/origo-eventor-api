@@ -1,16 +1,20 @@
 package no.stunor.origo.eventorapi.data
 
 import no.stunor.origo.eventorapi.model.person.*
-import org.jetbrains.exposed.sql.Database
-import org.jetbrains.exposed.sql.ResultRow
-import org.jetbrains.exposed.sql.Table
-import org.jetbrains.exposed.sql.and
-import org.jetbrains.exposed.sql.javatime.timestamp
-import org.jetbrains.exposed.sql.selectAll
-import org.jetbrains.exposed.sql.transactions.transaction
-import org.jetbrains.exposed.sql.upsert
+import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.core.ResultRow
+import org.jetbrains.exposed.v1.core.Table
+import org.jetbrains.exposed.v1.core.and
+import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.inList
+import org.jetbrains.exposed.v1.javatime.timestamp
+import org.jetbrains.exposed.v1.jdbc.selectAll
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import org.jetbrains.exposed.v1.jdbc.upsert
 import java.util.UUID
 import javax.sql.DataSource
+import kotlin.uuid.toJavaUuid
+import kotlin.uuid.toKotlinUuid
 
 internal object PersonTable : Table("person") {
     val id = uuid("id")
@@ -38,7 +42,7 @@ open class PersonRepository(
 
     private fun toPersonSimple(row: ResultRow): Person {
         return Person(
-            id = row[PersonTable.id],
+            id = row[PersonTable.id].toJavaUuid(),
             eventorId = row[PersonTable.eventorId],
             eventorRef = row[PersonTable.eventorRef],
             name = PersonName(
@@ -57,7 +61,7 @@ open class PersonRepository(
     }
 
     private fun toPerson(row: ResultRow): Person {
-        val id = row[PersonTable.id]
+        val id = row[PersonTable.id].toJavaUuid()
         return Person(
             id = id,
             eventorId = row[PersonTable.eventorId],
@@ -89,10 +93,10 @@ open class PersonRepository(
         transaction(database) {
             val allMemberships = MembershipTable
                 .selectAll()
-                .where { MembershipTable.personId inList personIds }
+                .where { MembershipTable.personId inList personIds.map { it.toKotlinUuid() } }
                 .map { row ->
-                    val personId = row[MembershipTable.personId]
-                    val organisationId = row[MembershipTable.organisationId]
+                    val personId = row[MembershipTable.personId].toJavaUuid()
+                    val organisationId = row[MembershipTable.organisationId].toJavaUuid()
                     val organisation = membershipRepository.getOrganisationById(organisationId)
 
                     Membership(
@@ -125,12 +129,12 @@ open class PersonRepository(
         transaction(database) {
             val allUserPersons = UserPersonTable
                 .selectAll()
-                .where { UserPersonTable.personId inList personIds }
+                .where { UserPersonTable.personId inList personIds.map { it.toKotlinUuid() } }
                 .map { row ->
                     UserPerson(
                         id = UserPersonKey(
-                            userId = row[UserPersonTable.userId],
-                            personId = row[UserPersonTable.personId]
+                            userId = row[UserPersonTable.userId].toJavaUuid(),
+                            personId = row[UserPersonTable.personId].toJavaUuid()
                         ),
                         person = null
                     )
@@ -160,7 +164,7 @@ open class PersonRepository(
         val persons = transaction(database) {
             PersonTable.innerJoin(UserPersonTable)
                 .selectAll()
-                .where { (UserPersonTable.userId eq userId) and (PersonTable.eventorId eq eventorId) }
+                .where { (UserPersonTable.userId eq userId.toKotlinUuid()) and (PersonTable.eventorId eq eventorId) }
                 .map(::toPersonSimple)
         }
 
@@ -178,7 +182,7 @@ open class PersonRepository(
             }
 
             PersonTable.upsert {
-                it[PersonTable.id] = person.id!!
+                it[PersonTable.id] = person.id!!.toKotlinUuid()
                 it[PersonTable.eventorId] = person.eventorId
                 it[PersonTable.eventorRef] = person.eventorRef
                 it[PersonTable.familyName] = person.name.family

@@ -3,10 +3,13 @@ package no.stunor.origo.eventorapi.data
 import no.stunor.origo.eventorapi.model.event.ClassGender
 import no.stunor.origo.eventorapi.model.event.EventClass
 import no.stunor.origo.eventorapi.model.event.EventClassTypeEnum
-import org.jetbrains.exposed.sql.Database
-import org.jetbrains.exposed.sql.ResultRow
-import org.jetbrains.exposed.sql.selectAll
-import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.core.ResultRow
+import kotlin.uuid.toJavaUuid
+import kotlin.uuid.toKotlinUuid
+import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.jdbc.selectAll
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import java.util.*
 import javax.sql.DataSource
 
@@ -16,7 +19,7 @@ open class EventClassRepository(dataSource: DataSource) {
 
     private fun toEventClass(row: ResultRow): EventClass {
         return EventClass(
-            id = row[ClassTable.id],
+            id = row[ClassTable.id].toJavaUuid(),
             eventorRef = row[ClassTable.eventorRef],
             name = row[ClassTable.name],
             shortName = row[ClassTable.shortName],
@@ -37,7 +40,7 @@ open class EventClassRepository(dataSource: DataSource) {
         return transaction(database) {
             ClassTable
                 .selectAll()
-                .where { ClassTable.eventId eq eventId }
+                .where { ClassTable.eventId eq eventId.toKotlinUuid() }
                 .map(::toEventClass)
         }
     }

@@ -3,16 +3,18 @@ package no.stunor.origo.eventorapi.data
 import no.stunor.origo.eventorapi.model.person.Membership
 import no.stunor.origo.eventorapi.model.person.MembershipKey
 import no.stunor.origo.eventorapi.model.person.MembershipType
-import org.jetbrains.exposed.sql.Database
-import org.jetbrains.exposed.sql.ResultRow
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
-import org.jetbrains.exposed.sql.Table
-import org.jetbrains.exposed.sql.deleteWhere
-import org.jetbrains.exposed.sql.selectAll
-import org.jetbrains.exposed.sql.transactions.transaction
-import org.jetbrains.exposed.sql.upsert
+import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.core.ResultRow
+import org.jetbrains.exposed.v1.core.Table
+import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.jdbc.deleteWhere
+import org.jetbrains.exposed.v1.jdbc.selectAll
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import org.jetbrains.exposed.v1.jdbc.upsert
 import java.util.*
 import javax.sql.DataSource
+import kotlin.uuid.toJavaUuid
+import kotlin.uuid.toKotlinUuid
 
 internal object MembershipTable : Table("membership") {
     val personId = uuid("person_id").references(PersonTable.id)
@@ -30,8 +32,8 @@ open class MembershipRepository(
     private val database = Database.connect(dataSource)
 
     private fun toMembership(row: ResultRow): Membership {
-        val personId = row[MembershipTable.personId]
-        val organisationId = row[MembershipTable.organisationId]
+        val personId = row[MembershipTable.personId].toJavaUuid()
+        val organisationId = row[MembershipTable.organisationId].toJavaUuid()
         val organisation = organisationRepository.findById(organisationId)
 
         return Membership(
@@ -47,7 +49,7 @@ open class MembershipRepository(
         return transaction(database) {
             MembershipTable
                 .selectAll()
-                .where { MembershipTable.personId eq personId }
+                .where { MembershipTable.personId eq personId.toKotlinUuid() }
                 .map(::toMembership)
         }
     }
@@ -57,8 +59,8 @@ open class MembershipRepository(
     open fun save(membership: Membership): Membership {
         transaction(database) {
             MembershipTable.upsert {
-                it[MembershipTable.personId] = membership.id.personId!!
-                it[MembershipTable.organisationId] = membership.id.organisationId!!
+                it[MembershipTable.personId] = membership.id.personId!!.toKotlinUuid()
+                it[MembershipTable.organisationId] = membership.id.organisationId!!.toKotlinUuid()
                 it[MembershipTable.type] = membership.type.name
             }
         }
@@ -68,7 +70,7 @@ open class MembershipRepository(
     open fun deleteByPersonId(personId: UUID?) {
         if (personId != null) {
             transaction(database) {
-                MembershipTable.deleteWhere { MembershipTable.personId eq personId }
+                MembershipTable.deleteWhere { MembershipTable.personId eq personId.toKotlinUuid() }
             }
         }
     }
