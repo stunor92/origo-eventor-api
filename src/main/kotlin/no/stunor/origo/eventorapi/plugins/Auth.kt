@@ -7,8 +7,11 @@ import io.ktor.server.auth.jwt.*
 import io.ktor.server.config.*
 import io.ktor.server.response.*
 import io.ktor.http.*
+import org.slf4j.LoggerFactory
 import java.net.URI
 import java.util.concurrent.TimeUnit
+
+private val log = LoggerFactory.getLogger("Auth")
 
 fun Application.configureAuth(config: ApplicationConfig) {
     val projectRef  = config.property("app.supabaseProjectRef").getString()
@@ -18,6 +21,9 @@ fun Application.configureAuth(config: ApplicationConfig) {
         config.property("app.supabaseUrl").getString().trimEnd('/')
     val jwksUri     = "$supabaseUrl/auth/v1/.well-known/jwks.json"
     val issuer      = "$supabaseUrl/auth/v1"
+
+    log.info("JWT issuer: {}", issuer)
+    log.info("JWT JWKS:   {}", jwksUri)
 
     val jwkProvider = JwkProviderBuilder(URI(jwksUri).toURL())
         .cached(10, 24, TimeUnit.HOURS)
