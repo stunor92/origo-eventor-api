@@ -1,5 +1,12 @@
 # Changelog
 
+## [14.1.2](https://github.com/stunor92/origo-eventor-api/compare/v14.1.1...v14.1.2) (2026-06-01)
+
+
+### Bug Fixes
+
+* use SUPABASE_PROJECT_REF to build canonical JWT issuer ([3ebeb27](https://github.com/stunor92/origo-eventor-api/commit/3ebeb27da59dab7cdffce10e2ceca7afe15f3071))
+
 ## [14.1.1](https://github.com/stunor92/origo-eventor-api/compare/v14.1.0...v14.1.1) (2026-05-31)
 
 
