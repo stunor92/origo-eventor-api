@@ -1,5 +1,12 @@
 # Changelog
 
+## [14.1.3](https://github.com/stunor92/origo-eventor-api/compare/v14.1.2...v14.1.3) (2026-06-01)
+
+
+### Bug Fixes
+
+* align Jackson version to 2.21.3 ([#361](https://github.com/stunor92/origo-eventor-api/issues/361)) ([1c32292](https://github.com/stunor92/origo-eventor-api/commit/1c3229271b55a3a9ee8c603a07f79d23da2f9cf2))
+
 ## [14.1.2](https://github.com/stunor92/origo-eventor-api/compare/v14.1.1...v14.1.2) (2026-06-01)
 
 
