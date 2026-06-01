@@ -14,13 +14,9 @@ import java.util.concurrent.TimeUnit
 private val log = LoggerFactory.getLogger("Auth")
 
 fun Application.configureAuth(config: ApplicationConfig) {
-    val projectRef  = config.property("app.supabaseProjectRef").getString()
-    val supabaseUrl = if (projectRef.isNotEmpty())
-        "https://$projectRef.supabase.co"
-    else
-        config.property("app.supabaseUrl").getString().trimEnd('/')
-    val jwksUri     = "$supabaseUrl/auth/v1/.well-known/jwks.json"
-    val issuer      = "$supabaseUrl/auth/v1"
+    val projectRef = config.property("app.supabaseProjectRef").getString()
+    val jwksUri    = "https://$projectRef.supabase.co/auth/v1/.well-known/jwks.json"
+    val issuer     = "https://$projectRef.supabase.co/auth/v1"
 
     log.info("JWT issuer: {}", issuer)
     log.info("JWT JWKS:   {}", jwksUri)
