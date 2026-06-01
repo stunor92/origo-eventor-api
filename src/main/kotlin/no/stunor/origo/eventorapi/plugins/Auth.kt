@@ -11,7 +11,11 @@ import java.net.URI
 import java.util.concurrent.TimeUnit
 
 fun Application.configureAuth(config: ApplicationConfig) {
-    val supabaseUrl = config.property("app.supabaseUrl").getString().trimEnd('/')
+    val projectRef  = config.property("app.supabaseProjectRef").getString()
+    val supabaseUrl = if (projectRef.isNotEmpty())
+        "https://$projectRef.supabase.co"
+    else
+        config.property("app.supabaseUrl").getString().trimEnd('/')
     val jwksUri     = "$supabaseUrl/auth/v1/.well-known/jwks.json"
     val issuer      = "$supabaseUrl/auth/v1"
 

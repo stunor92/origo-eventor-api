@@ -196,7 +196,7 @@ class CalendarService(
         }
     }
 
-    private suspend fun buildPersonalRaces(
+        private suspend fun buildPersonalRaces(
         eventor: Eventor,
         resultLists: List<ResultListList>,
         startLists: List<StartListList>,
