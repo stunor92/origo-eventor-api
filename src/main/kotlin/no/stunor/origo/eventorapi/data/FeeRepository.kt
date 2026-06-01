@@ -4,6 +4,7 @@ import no.stunor.origo.eventorapi.model.event.Fee
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.Table
+import org.jetbrains.exposed.v1.core.java.javaUUID
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.javatime.timestamp
@@ -12,11 +13,9 @@ import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.upsert
 import java.util.*
 import javax.sql.DataSource
-import kotlin.uuid.toJavaUuid
-import kotlin.uuid.toKotlinUuid
 
 private object FeeTable : Table("fee") {
-    val id = uuid("id")
+    val id = javaUUID("id")
     override val primaryKey = PrimaryKey(id)
     val eventorRef = text("eventor_ref")
     val name = text("name")
@@ -29,12 +28,12 @@ private object FeeTable : Table("fee") {
     val fromBirthYear = integer("from_birth_year").nullable()
     val toBirthYear = integer("to_birth_year").nullable()
     val taxIncluded = bool("tax_included")
-    val eventId = uuid("event_id").references(EventTable.id).nullable()
+    val eventId = javaUUID("event_id").references(EventTable.id).nullable()
 }
 
 private object ClassFeeTable : Table("class_fee") {
-    val feeId = uuid("fee_id").references(FeeTable.id)
-    val classId = uuid("class_id").references(ClassTable.id)
+    val feeId = javaUUID("fee_id").references(FeeTable.id)
+    val classId = javaUUID("class_id").references(ClassTable.id)
     override val primaryKey = PrimaryKey(feeId, classId)
 }
 
@@ -44,7 +43,7 @@ class FeeRepository(dataSource: DataSource) {
 
     private fun toFee(row: ResultRow): Fee {
         return Fee(
-            id = row[FeeTable.id].toJavaUuid(),
+            id = row[FeeTable.id],
             eventorRef = row[FeeTable.eventorRef],
             name = row[FeeTable.name],
             currency = row[FeeTable.currency],
@@ -57,7 +56,7 @@ class FeeRepository(dataSource: DataSource) {
             toBirthYear = row[FeeTable.toBirthYear],
             taxIncluded = row[FeeTable.taxIncluded],
             classes = mutableListOf(), // Load separately if needed
-            eventId = row[FeeTable.eventId]?.toJavaUuid()
+            eventId = row[FeeTable.eventId]
         )
     }
     
@@ -66,7 +65,7 @@ class FeeRepository(dataSource: DataSource) {
         return transaction(database) {
             FeeTable
                 .selectAll()
-                .where { FeeTable.eventId eq eventId.toKotlinUuid() }
+                .where { FeeTable.eventId eq eventId }
                 .map(::toFee)
         }
     }
@@ -78,7 +77,7 @@ class FeeRepository(dataSource: DataSource) {
             }
 
             FeeTable.upsert {
-                it[FeeTable.id] = fee.id!!.toKotlinUuid()
+                it[FeeTable.id] = fee.id!!
                 it[FeeTable.eventorRef] = fee.eventorRef
                 it[FeeTable.name] = fee.name
                 it[FeeTable.currency] = fee.currency
@@ -90,18 +89,18 @@ class FeeRepository(dataSource: DataSource) {
                 it[FeeTable.fromBirthYear] = fee.fromBirthYear
                 it[FeeTable.toBirthYear] = fee.toBirthYear
                 it[FeeTable.taxIncluded] = fee.taxIncluded
-                it[FeeTable.eventId] = fee.eventId?.toKotlinUuid()
+                it[FeeTable.eventId] = fee.eventId
             }
 
             // Save class associations
             if (fee.classes.isNotEmpty()) {
                 // First delete existing associations
-                ClassFeeTable.deleteWhere { ClassFeeTable.feeId eq fee.id!!.toKotlinUuid() }
+                ClassFeeTable.deleteWhere { ClassFeeTable.feeId eq fee.id!! }
                 // Then insert new ones
                 for (eventClass in fee.classes) {
                     ClassFeeTable.upsert {
-                        it[ClassFeeTable.feeId] = fee.id!!.toKotlinUuid()
-                        it[ClassFeeTable.classId] = eventClass.id.toKotlinUuid()
+                        it[ClassFeeTable.feeId] = fee.id!!
+                        it[ClassFeeTable.classId] = eventClass.id
                     }
                 }
             }
@@ -119,8 +118,8 @@ class FeeRepository(dataSource: DataSource) {
         transaction(database) {
             fees.forEach { fee ->
                 fee.id?.let { id ->
-                    ClassFeeTable.deleteWhere { ClassFeeTable.feeId eq id.toKotlinUuid() }
-                    FeeTable.deleteWhere { FeeTable.id eq id.toKotlinUuid() }
+                    ClassFeeTable.deleteWhere { ClassFeeTable.feeId eq id }
+                    FeeTable.deleteWhere { FeeTable.id eq id }
                 }
             }
         }

@@ -9,6 +9,7 @@ import no.stunor.origo.eventorapi.model.event.PunchingUnitType
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.Table
+import org.jetbrains.exposed.v1.core.java.javaUUID
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.javatime.timestamp
@@ -18,11 +19,9 @@ import org.jetbrains.exposed.v1.jdbc.upsert
 import java.sql.Timestamp
 import java.util.*
 import javax.sql.DataSource
-import kotlin.uuid.toJavaUuid
-import kotlin.uuid.toKotlinUuid
 
 internal object EventTable : Table("event") {
-    val id = uuid("id")
+    val id = javaUUID("id")
     override val primaryKey = PrimaryKey(id)
     val eventorId = text("eventor_id")
     val eventorRef = text("eventor_ref")
@@ -42,15 +41,15 @@ internal object EventTable : Table("event") {
 }
 
 private object EventOrganiserTable : Table("event_organiser") {
-    val eventId = uuid("event_id").references(EventTable.id)
-    val organisationId = uuid("organisation_id").references(OrganisationTable.id)
+    val eventId = javaUUID("event_id").references(EventTable.id)
+    val organisationId = javaUUID("organisation_id").references(OrganisationTable.id)
     override val primaryKey = PrimaryKey(eventId, organisationId)
 }
 
 internal object ClassTable : Table("class") {
-    val id = uuid("id")
+    val id = javaUUID("id")
     override val primaryKey = PrimaryKey(id)
-    val eventId = uuid("event_id").references(EventTable.id)
+    val eventId = javaUUID("event_id").references(EventTable.id)
     val eventorRef = text("eventor_ref")
     val name = text("name")
     val shortName = text("short_name")
@@ -66,9 +65,9 @@ internal object ClassTable : Table("class") {
 }
 
 private object DocumentTable : Table("document") {
-    val id = uuid("id")
+    val id = javaUUID("id")
     override val primaryKey = PrimaryKey(id)
-    val eventId = uuid("event_id").references(EventTable.id)
+    val eventId = javaUUID("event_id").references(EventTable.id)
     val eventorRef = text("eventor_ref")
     val name = text("name")
     val url = text("url")
@@ -76,9 +75,9 @@ private object DocumentTable : Table("document") {
 }
 
 private object RaceTable : Table("race") {
-    val id = uuid("id")
+    val id = javaUUID("id")
     override val primaryKey = PrimaryKey(id)
-    val eventId = uuid("event_id").references(EventTable.id)
+    val eventId = javaUUID("event_id").references(EventTable.id)
     val eventorRef = text("eventor_ref")
     val name = text("name")
     val lightCondition = text("light_condition")
@@ -122,7 +121,7 @@ class EventRepository(
 
     private fun toEvent(row: ResultRow): Event {
         return Event(
-            id = row[EventTable.id].toJavaUuid(),
+            id = row[EventTable.id],
             eventorId = row[EventTable.eventorId],
             eventorRef = row[EventTable.eventorRef],
             name = row[EventTable.name],
@@ -168,7 +167,7 @@ class EventRepository(
             EventTable.upsert(EventTable.eventorId, EventTable.eventorRef,
                 onUpdateExclude = listOf(EventTable.id)
             ) {
-                it[EventTable.id] = (event.id ?: UUID.randomUUID()).toKotlinUuid()
+                it[EventTable.id] = (event.id ?: UUID.randomUUID())
                 it[EventTable.eventorId] = event.eventorId
                 it[EventTable.eventorRef] = event.eventorRef
                 it[EventTable.name] = event.name
@@ -191,8 +190,8 @@ class EventRepository(
                 org.id?.let { orgId ->
                     organisationRepository.save(org)
                     EventOrganiserTable.upsert {
-                        it[EventOrganiserTable.eventId] = event.id!!.toKotlinUuid()
-                        it[EventOrganiserTable.organisationId] = orgId.toKotlinUuid()
+                        it[EventOrganiserTable.eventId] = event.id!!
+                        it[EventOrganiserTable.organisationId] = orgId
                     }
                 }
             }
@@ -201,8 +200,8 @@ class EventRepository(
                 ClassTable.upsert(ClassTable.eventId, ClassTable.eventorRef,
                     onUpdateExclude = listOf(ClassTable.id)
                 ) {
-                    it[ClassTable.id] = eventClass.id.toKotlinUuid()
-                    it[ClassTable.eventId] = event.id!!.toKotlinUuid()
+                    it[ClassTable.id] = eventClass.id
+                    it[ClassTable.eventId] = event.id!!
                     it[ClassTable.eventorRef] = eventClass.eventorRef
                     it[ClassTable.name] = eventClass.name
                     it[ClassTable.shortName] = eventClass.shortName
@@ -222,8 +221,8 @@ class EventRepository(
                 DocumentTable.upsert(DocumentTable.eventId, DocumentTable.eventorRef,
                     onUpdateExclude = listOf(DocumentTable.id)
                 ) {
-                    it[DocumentTable.id] = (document.id ?: UUID.randomUUID()).toKotlinUuid()
-                    it[DocumentTable.eventId] = event.id!!.toKotlinUuid()
+                    it[DocumentTable.id] = (document.id ?: UUID.randomUUID())
+                    it[DocumentTable.eventId] = event.id!!
                     it[DocumentTable.eventorRef] = document.eventorRef
                     it[DocumentTable.name] = document.name
                     it[DocumentTable.url] = document.url
@@ -235,8 +234,8 @@ class EventRepository(
                 RaceTable.upsert(RaceTable.eventId, RaceTable.eventorRef,
                     onUpdateExclude = listOf(RaceTable.id)
                 ) {
-                    it[RaceTable.id] = (race.id ?: UUID.randomUUID()).toKotlinUuid()
-                    it[RaceTable.eventId] = event.id!!.toKotlinUuid()
+                    it[RaceTable.id] = (race.id ?: UUID.randomUUID())
+                    it[RaceTable.eventId] = event.id!!
                     it[RaceTable.eventorRef] = race.eventorRef
                     it[RaceTable.name] = race.name
                     it[RaceTable.lightCondition] = race.lightCondition.name

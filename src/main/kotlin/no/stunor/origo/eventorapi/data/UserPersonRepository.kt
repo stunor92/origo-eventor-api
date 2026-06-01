@@ -5,18 +5,17 @@ import no.stunor.origo.eventorapi.model.person.UserPersonKey
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.Table
+import org.jetbrains.exposed.v1.core.java.javaUUID
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.upsert
 import java.util.*
 import javax.sql.DataSource
-import kotlin.uuid.toJavaUuid
-import kotlin.uuid.toKotlinUuid
 
 internal object UserPersonTable : Table("user_person") {
-    val userId = uuid("user_id")
-    val personId = uuid("person_id").references(PersonTable.id)
+    val userId = javaUUID("user_id")
+    val personId = javaUUID("person_id").references(PersonTable.id)
 
     override val primaryKey = PrimaryKey(userId, personId)
 }
@@ -28,8 +27,8 @@ open class UserPersonRepository(dataSource: DataSource) {
     private fun toUserPerson(row: ResultRow): UserPerson {
         return UserPerson(
             id = UserPersonKey(
-                userId = row[UserPersonTable.userId].toJavaUuid(),
-                personId = row[UserPersonTable.personId].toJavaUuid()
+                userId = row[UserPersonTable.userId],
+                personId = row[UserPersonTable.personId]
             ),
             person = null // Avoid circular dependency
         )
@@ -39,7 +38,7 @@ open class UserPersonRepository(dataSource: DataSource) {
         return transaction(database) {
             UserPersonTable
                 .selectAll()
-                .where { UserPersonTable.personId eq personId.toKotlinUuid() }
+                .where { UserPersonTable.personId eq personId }
                 .map(::toUserPerson)
         }
     }
@@ -47,8 +46,8 @@ open class UserPersonRepository(dataSource: DataSource) {
     open fun save(userPerson: UserPerson): UserPerson {
         transaction(database) {
             UserPersonTable.upsert {
-                it[UserPersonTable.userId] = userPerson.id.userId!!.toKotlinUuid()
-                it[UserPersonTable.personId] = userPerson.id.personId!!.toKotlinUuid()
+                it[UserPersonTable.userId] = userPerson.id.userId!!
+                it[UserPersonTable.personId] = userPerson.id.personId!!
             }
         }
         return userPerson
