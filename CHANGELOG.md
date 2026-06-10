@@ -1,5 +1,15 @@
 # Changelog
 
+## [14.1.4](https://github.com/stunor92/origo-eventor-api/compare/v14.1.3...v14.1.4) (2026-06-10)
+
+
+### Bug Fixes
+
+* Complete EntryBreaks database persistence and handle empty arrays ([00b9bd6](https://github.com/stunor92/origo-eventor-api/commit/00b9bd60563af1cbd2934d6ec4ec5972284077ca))
+* failing GitHub Actions job Analyze (java-kotlin) ([#370](https://github.com/stunor92/origo-eventor-api/issues/370)) ([173bcda](https://github.com/stunor92/origo-eventor-api/commit/173bcda08eb47075814a61b91d690025d75bc28f))
+* Remove nullable constraint from array fields in EventTable ([2cf4cca](https://github.com/stunor92/origo-eventor-api/commit/2cf4ccaf6cb041b3224cf559aa329b0151c3b64c))
+* save entry-breaks to supabase ([3282fa5](https://github.com/stunor92/origo-eventor-api/commit/3282fa5c89a4e7f04f07fb99f2735d330ab7c1d7))
+
 ## [14.1.3](https://github.com/stunor92/origo-eventor-api/compare/v14.1.2...v14.1.3) (2026-06-01)
 
 
