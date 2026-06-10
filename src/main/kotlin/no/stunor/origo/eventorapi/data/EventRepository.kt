@@ -29,12 +29,12 @@ internal object EventTable : Table("event") {
     val type = text("type")
     val classification = text("classification")
     val status = text("status")
-    val disciplines = text("disciplines").nullable()
-    val punchingUnitTypes = text("punching_unit_types").nullable()
+    val disciplines = text("disciplines")
+    val punchingUnitTypes = text("punching_unit_types")
     val startDate = timestamp("start_date").nullable()
     val finishDate = timestamp("finish_date").nullable()
-    val entryBreaks = text("entry_breaks").nullable()
-    val webUrls = text("web_urls").nullable()
+    val entryBreaks = text("entry_breaks")
+    val webUrls = text("web_urls")
     val message = text("message").nullable()
     val email = text("email").nullable()
     val phone = text("phone").nullable()
@@ -97,8 +97,8 @@ class EventRepository(
     
     private val database = Database.connect(dataSource)
 
-    private fun parseDisciplines(disciplinesStr: String?): Array<Discipline> {
-        if (disciplinesStr.isNullOrEmpty()) return emptyArray()
+    private fun parseDisciplines(disciplinesStr: String): Array<Discipline> {
+        if (disciplinesStr.isEmpty()) return emptyArray()
         val normalized = disciplinesStr.trim().trimStart('{').trimEnd('}')
         if (normalized.isEmpty()) return emptyArray()
         return normalized.split(",").mapNotNull { token ->
@@ -106,8 +106,8 @@ class EventRepository(
         }.toTypedArray()
     }
 
-    private fun parsePunchingTypes(typesStr: String?): Array<PunchingUnitType> {
-        if (typesStr.isNullOrEmpty()) return emptyArray()
+    private fun parsePunchingTypes(typesStr: String): Array<PunchingUnitType> {
+        if (typesStr.isEmpty()) return emptyArray()
         val normalized = typesStr.trim().trimStart('{').trimEnd('}')
         if (normalized.isEmpty()) return emptyArray()
         return normalized.split(",").mapNotNull { token ->
@@ -115,15 +115,15 @@ class EventRepository(
         }.toTypedArray()
     }
 
-    private fun parseWebUrls(urlsStr: String?): List<String> {
-        if (urlsStr.isNullOrEmpty()) return emptyList()
+    private fun parseWebUrls(urlsStr: String): List<String> {
+        if (urlsStr.isEmpty()) return emptyList()
         val normalized = urlsStr.trim().trimStart('{').trimEnd('}')
         if (normalized.isEmpty()) return emptyList()
         return normalized.split(",").map { it.trim() }.filter { it.isNotEmpty() }
     }
 
-    private fun parseEntryBreaks(entryBreaksStr: String?): Array<Timestamp> {
-        if (entryBreaksStr.isNullOrEmpty()) return emptyArray()
+    private fun parseEntryBreaks(entryBreaksStr: String): Array<Timestamp> {
+        if (entryBreaksStr.isEmpty()) return emptyArray()
         val normalized = entryBreaksStr.trim().trimStart('{').trimEnd('}')
         if (normalized.isEmpty()) return emptyArray()
         return normalized.split(",")
