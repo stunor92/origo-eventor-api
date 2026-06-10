@@ -100,6 +100,7 @@ class EventRepository(
     private fun parseDisciplines(disciplinesStr: String?): Array<Discipline> {
         if (disciplinesStr.isNullOrEmpty()) return emptyArray()
         val normalized = disciplinesStr.trim().trimStart('{').trimEnd('}')
+        if (normalized.isEmpty()) return emptyArray()
         return normalized.split(",").mapNotNull { token ->
             runCatching { Discipline.valueOf(token.trim()) }.getOrNull()
         }.toTypedArray()
@@ -108,6 +109,7 @@ class EventRepository(
     private fun parsePunchingTypes(typesStr: String?): Array<PunchingUnitType> {
         if (typesStr.isNullOrEmpty()) return emptyArray()
         val normalized = typesStr.trim().trimStart('{').trimEnd('}')
+        if (normalized.isEmpty()) return emptyArray()
         return normalized.split(",").mapNotNull { token ->
             runCatching { PunchingUnitType.valueOf(token.trim()) }.getOrNull()
         }.toTypedArray()
@@ -116,7 +118,19 @@ class EventRepository(
     private fun parseWebUrls(urlsStr: String?): List<String> {
         if (urlsStr.isNullOrEmpty()) return emptyList()
         val normalized = urlsStr.trim().trimStart('{').trimEnd('}')
+        if (normalized.isEmpty()) return emptyList()
         return normalized.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+    }
+
+    private fun parseEntryBreaks(entryBreaksStr: String?): Array<Timestamp> {
+        if (entryBreaksStr.isNullOrEmpty()) return emptyArray()
+        val normalized = entryBreaksStr.trim().trimStart('{').trimEnd('}')
+        if (normalized.isEmpty()) return emptyArray()
+        return normalized.split(",")
+            .mapNotNull { token ->
+                runCatching { Timestamp.valueOf(token.trim()) }.getOrNull()
+            }
+            .toTypedArray()
     }
 
     private fun toEvent(row: ResultRow): Event {
@@ -135,7 +149,7 @@ class EventRepository(
             organisers = mutableListOf(), // Load separately
             classes = mutableListOf(), // Load separately
             documents = mutableListOf(), // Load separately
-            entryBreaks = emptyArray(), // Could be parsed from entryBreaks column if needed
+            entryBreaks = parseEntryBreaks(row[EventTable.entryBreaks]),
             races = mutableListOf(), // Load separately
             webUrls = parseWebUrls(row[EventTable.webUrls]),
             message = row[EventTable.message],
@@ -157,14 +171,14 @@ class EventRepository(
     
     fun save(event: Event): Event {
         transaction(database) {
-            val disciplinesStr = event.disciplines.takeIf { it.isNotEmpty() }
-                ?.let { "{${it.joinToString(",") { d -> d.name }}}" }
-            val punchingTypesStr = event.punchingUnitTypes.takeIf { it.isNotEmpty() }
-                ?.let { "{${it.joinToString(",") { p -> p.name }}}" }
-            val webUrlsStr = event.webUrls.takeIf { it.isNotEmpty() }
-                ?.let { "{${it.joinToString(",")}}" }
-            val entryBreaksStr = event.entryBreaks.takeIf { it.isNotEmpty() }
-                ?.let { "{${it.joinToString(",") { eb -> eb.toString() }}}" }
+            val disciplinesStr = if (event.disciplines.isEmpty()) "{}"
+                else "{${event.disciplines.joinToString(",") { d -> d.name }}}"
+            val punchingTypesStr = if (event.punchingUnitTypes.isEmpty()) "{}"
+                else "{${event.punchingUnitTypes.joinToString(",") { p -> p.name }}}"
+            val webUrlsStr = if (event.webUrls.isEmpty()) "{}"
+                else "{${event.webUrls.joinToString(",")}}"
+            val entryBreaksStr = if (event.entryBreaks.isEmpty()) "{}"
+                else "{${event.entryBreaks.joinToString(",") { eb -> eb.toString() }}}"
 
             EventTable.upsert(EventTable.eventorId, EventTable.eventorRef,
                 onUpdateExclude = listOf(EventTable.id)

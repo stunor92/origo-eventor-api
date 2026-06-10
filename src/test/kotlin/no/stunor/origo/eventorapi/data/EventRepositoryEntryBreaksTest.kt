@@ -28,15 +28,15 @@ class EventRepositoryEntryBreaksTest {
         )
 
         // Serialize like the save method does
-        val entryBreaksStr = event.entryBreaks.takeIf { it.isNotEmpty() }
-            ?.let { "{${it.joinToString(",") { eb -> eb.toString() }}}" }
+        val entryBreaksStr = if (event.entryBreaks.isEmpty()) "{}"
+            else "{${event.entryBreaks.joinToString(",") { eb -> eb.toString() }}}"
 
         assertNotNull(entryBreaksStr)
         assertEquals("{$timestamp1,$timestamp2}", entryBreaksStr)
     }
 
     @Test
-    fun `entryBreaks should handle empty array`() {
+    fun `entryBreaks should serialize empty array as empty brackets`() {
         val event = Event(
             eventorId = "TEST",
             eventorRef = "12345",
@@ -48,11 +48,11 @@ class EventRepositoryEntryBreaksTest {
         )
 
         // Serialize like the save method does
-        val entryBreaksStr = event.entryBreaks.takeIf { it.isNotEmpty() }
-            ?.let { "{${it.joinToString(",") { eb -> eb.toString() }}}" }
+        val entryBreaksStr = if (event.entryBreaks.isEmpty()) "{}"
+            else "{${event.entryBreaks.joinToString(",") { eb -> eb.toString() }}}"
 
-        // Should be null for empty array
-        assertEquals(null, entryBreaksStr)
+        // Should be "{}" for empty array
+        assertEquals("{}", entryBreaksStr)
     }
 
     @Test
