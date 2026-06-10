@@ -163,6 +163,8 @@ class EventRepository(
                 ?.let { "{${it.joinToString(",") { p -> p.name }}}" }
             val webUrlsStr = event.webUrls.takeIf { it.isNotEmpty() }
                 ?.let { "{${it.joinToString(",")}}" }
+            val entryBreaksStr = event.entryBreaks.takeIf { it.isNotEmpty() }
+                ?.let { "{${it.joinToString(",") { eb -> eb.toString() }}}" }
 
             EventTable.upsert(EventTable.eventorId, EventTable.eventorRef,
                 onUpdateExclude = listOf(EventTable.id)
@@ -178,6 +180,7 @@ class EventRepository(
                 it[EventTable.punchingUnitTypes] = punchingTypesStr
                 it[EventTable.startDate] = event.startDate?.toInstant()
                 it[EventTable.finishDate] = event.finishDate?.toInstant()
+                it[EventTable.entryBreaks] = entryBreaksStr
                 it[EventTable.webUrls] = webUrlsStr
                 it[EventTable.message] = event.message
                 it[EventTable.email] = event.email
