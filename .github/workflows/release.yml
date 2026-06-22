@@ -20,7 +20,7 @@ jobs:
         with:
           release-type: maven
           token: ${{ secrets.GITHUB_TOKEN }}
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Set up Docker Buildx
         if: ${{ steps.release.outputs.release_created }}
         uses: docker/setup-buildx-action@v4
